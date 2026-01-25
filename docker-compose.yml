@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot-backend
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./backend/chroma_db:/app/chroma_db
+    environment:
+      - HF_HUB_DISABLE_SSL_VERIFY=1
+    networks:
+      - chatbot-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chatbot-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://backend:5000/api
+    depends_on:
+      - backend
+    networks:
+      - chatbot-network
+
+networks:
+  chatbot-network:
+    driver: bridge

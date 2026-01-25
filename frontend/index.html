@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Python API Demo</title>
+</head>
+<body>
+  <h1>Python API Example</h1>
+
+  <button onclick="callApi()">Call API</button>
+  <p id="result"></p>
+
+  <script>
+    function callApi() {
+      fetch("http://127.0.0.1:5000/api/hello")
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById("result").innerText = data.message;
+        })
+        .catch(error => {
+          console.error("Error:", error);
+        });
+    }
+  </script>
+</body>
+</html>
