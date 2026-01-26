@@ -8,7 +8,7 @@ class GeminiService:
             print("Warning: GOOGLE_API_KEY not found in environment variables")
         else:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-flash-latest')
 
     def generate_response(self, query: str, context_chunks: list) -> str:
         """

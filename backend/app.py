@@ -14,8 +14,8 @@ from llm_service import GeminiService
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Streamlit frontend
 
-# Initialize services
-gemini_service = GeminiService()
+# Initialize services (Lazy loading to avoid fork issues with gRPC/Chroma)
+# gemini_service = GeminiService()
 
 # Configuration
 UPLOAD_FOLDER = tempfile.gettempdir()
@@ -119,7 +119,8 @@ def chat():
         
         # Format response for chat
         if results["success"] and results["results"]:
-            # Generate answer using Gemini
+            # Generate answer using Gemini (Instantiate here for thread safety)
+            gemini_service = GeminiService()
             answer = gemini_service.generate_response(query, results["results"])
             
             # Calculate source counts for display
@@ -191,4 +192,7 @@ if __name__ == "__main__":
     print("   - POST /api/chat   - Query documents")
     print("   - GET  /api/stats  - Collection statistics")
     print("   - POST /api/clear  - Clear all documents")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("   - POST /api/clear  - Clear all documents")
+    # Disable reloader to prevent "terminate called without an active exception"
+    # This happens because grpc/chroma are not fork-safe when used with Flask reloader in Docker
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
