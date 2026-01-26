@@ -25,3 +25,4 @@ numpy>=1.24.0
 
 # Required for Nomic Embeddings
 einops
+google-generativeai>=0.3.0

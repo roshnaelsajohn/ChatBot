@@ -9,9 +9,13 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from rag_service import get_rag_service
+from llm_service import GeminiService
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Streamlit frontend
+
+# Initialize services
+gemini_service = GeminiService()
 
 # Configuration
 UPLOAD_FOLDER = tempfile.gettempdir()
@@ -115,18 +119,22 @@ def chat():
         
         # Format response for chat
         if results["success"] and results["results"]:
-            # Combine relevant chunks into a response
-            response_parts = []
-            sources = set()
+            # Generate answer using Gemini
+            answer = gemini_service.generate_response(query, results["results"])
             
+            # Calculate source counts for display
+            source_counts = {}
             for r in results["results"]:
-                response_parts.append(r["content"])
-                sources.add(r["source"])
+                source = r["source"]
+                source_counts[source] = source_counts.get(source, 0) + 1
+            
+            # Format sources list with counts
+            formatted_sources = [f"{src} ({count} chunks)" for src, count in source_counts.items()]
             
             response = {
                 "success": True,
-                "answer": "\n\n---\n\n".join(response_parts),
-                "sources": list(sources),
+                "answer": answer,
+                "sources": formatted_sources,
                 "chunks": results["results"]
             }
         else:

@@ -12,6 +12,7 @@ services:
       - ./backend/chroma_db:/app/chroma_db
     environment:
       - HF_HUB_DISABLE_SSL_VERIFY=1
+      - GOOGLE_API_KEY=AIzaSyDt_ce7qXOofqLaX5eyFBYwDrsLPF-YLoU
     networks:
       - chatbot-network
 

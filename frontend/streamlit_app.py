@@ -133,7 +133,7 @@ def publish_document(file):
     """Upload and publish a document to the vector database."""
     try:
         files = {"file": (file.name, file.getvalue(), file.type)}
-        response = requests.post(f"{API_BASE_URL}/publish", files=files, timeout=60)
+        response = requests.post(f"{API_BASE_URL}/publish", files=files, timeout=300)
         return response.json()
     except requests.exceptions.RequestException as e:
         return {"success": False, "message": f"Connection error: {str(e)}"}
@@ -145,7 +145,7 @@ def send_chat_message(message):
         response = requests.post(
             f"{API_BASE_URL}/chat",
             json={"message": message, "n_results": 3},
-            timeout=30
+            timeout=300
         )
         return response.json()
     except requests.exceptions.RequestException as e:
