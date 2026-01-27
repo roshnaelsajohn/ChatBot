@@ -23,88 +23,119 @@ st.set_page_config(
 # Custom CSS for modern styling
 st.markdown("""
 <style>
-    /* Main container */
-    .main {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    @import url('https://fonts.googleapis.com/css2?family=Smooch+Sans:wght@100..900&display=swap');
+
+    html, body, [class*="css"]  {
+        font-family: 'Smooch Sans', sans-serif;
+    }
+
+    /* Main container - Deep Dark Flat Background */
+    .stApp {
+        background-color: #0F1116;
     }
     
-    /* Chat message styling */
+    .main {
+        background-color: #0F1116;
+    }
+    
+    /* Headers with Smooch Sans */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Smooch Sans', sans-serif;
+        font-weight: 600;
+        color: #E6EDF3 !important;
+    }
+    
+    /* Chat message styling - Minimalist */
     .chat-message {
-        padding: 1.5rem;
-        border-radius: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
         margin-bottom: 1rem;
         display: flex;
         flex-direction: column;
+        border: 1px solid #30363D;
+        background-color: #161B22;
     }
     
     .user-message {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background-color: #1F2937; /* Slightly lighter for user */
+        color: #E6EDF3;
         margin-left: 20%;
+        border: 1px solid #374151;
     }
     
     .bot-message {
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-        color: #e2e8f0;
+        background-color: #0F1116; /* Darker for bot */
+        color: #C9D1D9;
         margin-right: 20%;
-        border: 1px solid #4a5568;
+        border: 1px solid #30363D;
     }
     
     .source-tag {
-        background: #4a5568;
-        color: #a0aec0;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
+        background-color: #21262D;
+        color: #8B949E;
+        padding: 2px 8px;
+        border-radius: 12px;
         font-size: 0.8rem;
-        margin-top: 0.5rem;
+        margin-top: 8px;
         display: inline-block;
+        border: 1px solid #30363D;
     }
     
     /* Sidebar styling */
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-    }
-    
-    /* Upload section */
-    .upload-section {
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        border: 1px solid #4a5568;
-        margin-bottom: 1rem;
+    section[data-testid="stSidebar"] {
+        background-color: #010409; /* Very dark sidebar */
+        border-right: 1px solid #30363D;
     }
     
     /* Stats card */
     .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #161B22;
         padding: 1rem;
-        border-radius: 0.75rem;
+        border-radius: 8px;
         text-align: center;
-        color: white;
+        color: #E6EDF3;
+        border: 1px solid #30363D;
     }
     
-    /* Button styling */
+    /* Button styling - Minimalist Outline */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 0.5rem;
+        background-color: transparent;
+        color: #58A6FF;
+        border: 1px solid #30363D;
+        border-radius: 6px;
         padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        font-family: 'Smooch Sans', sans-serif;
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        background-color: #1F242C;
+        border-color: #58A6FF;
+        color: #58A6FF;
+        box-shadow: none;
     }
     
     /* Title styling */
     h1 {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        background: none;
+        -webkit-text-fill-color: #E6EDF3;
+        text-align: center;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+    
+    /* Input field styling */
+    .stTextInput > div > div > input {
+        background-color: #0D1117;
+        color: #E6EDF3;
+        border: 1px solid #30363D;
+        border-radius: 6px;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #58A6FF;
+        box-shadow: 0 0 0 1px #58A6FF;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -139,12 +170,17 @@ def publish_document(file):
         return {"success": False, "message": f"Connection error: {str(e)}"}
 
 
-def send_chat_message(message, talk_to_llm=False):
+def send_chat_message(message, chat_mode="document", synthesize_response=True):
     """Send a message to the chat API and get a response."""
     try:
         response = requests.post(
             f"{API_BASE_URL}/chat",
-            json={"message": message, "n_results": 10, "talk_to_llm": talk_to_llm},
+            json={
+                "message": message, 
+                "n_results": 10, 
+                "chat_mode": chat_mode,
+                "synthesize_response": synthesize_response
+            },
             timeout=300
         )
         return response.json()
@@ -250,11 +286,26 @@ def main():
         st.markdown("## ⚙️ Chat Mode")
         mode = st.radio(
             "Select capability:",
-            ["📚 Ask Documents (RAG)", "🧠 Ask General Knowledge (LLM)"],
+            ["📚 Ask Documents (RAG)", "🌐 Web Search", "🧠 Ask General Knowledge (LLM)"],
             index=0,
-            help="**Ask Documents**: Answers based ONLY on your uploaded files.\n**Ask General Knowledge**: Bypasses documents and uses the AI's own knowledge."
+            help="**Ask Documents**: Answers based ONLY on your uploaded files.\n**Web Search**: Search the internet.\n**Ask General Knowledge**: Bypasses documents and uses the AI's own knowledge."
         )
-        talk_to_llm = True if mode == "🧠 Ask General Knowledge (LLM)" else False
+        
+        # Map UI selection to API mode
+        chat_mode = "document"
+        if "Web Search" in mode:
+            chat_mode = "web"
+        elif "General Knowledge" in mode:
+            chat_mode = "llm"
+
+        if chat_mode == "llm":
+            synthesize_response = True # Always true for pure LLM
+        else:
+            synthesize_response = st.toggle(
+                "Synthesize Answer with AI",
+                value=True,
+                help="**ON**: AI reads documents and writes an answer (Uses 1 Credit).\n**OFF**: Shows raw text chunks found in documents (Saves Credits)."
+            )
     
     # Main chat area
     st.markdown("# 🤖 RAG Chatbot")
@@ -279,7 +330,7 @@ def main():
         # Get bot response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = send_chat_message(prompt, talk_to_llm)
+                response = send_chat_message(prompt, chat_mode, synthesize_response)
             
             if response.get("success"):
                 answer = response.get("answer", "I couldn't find relevant information.")

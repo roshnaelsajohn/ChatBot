@@ -8,7 +8,7 @@ class GeminiService:
             print("Warning: GOOGLE_API_KEY not found in environment variables")
         else:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-flash-lite-latest')
+            self.model = genai.GenerativeModel('gemini-2.0-flash-001')
 
     def generate_response(self, query: str, context_chunks: list, source_type: str = "Document") -> str:
         """
@@ -28,6 +28,11 @@ Answer:"""
                 context_text = "\n\n".join([chunk["content"] for chunk in context_chunks])
                 prompt = f"""You are a helpful AI assistant. Your task is to answer the user's question based ONLY on the provided context.
 Source: {source_type}
+
+Instructions:
+- If the query is a question, answer it.
+- If the query is a keyword or concept, explain it or summarize relevant details from the context.
+- If the answer is not in the context, say "I cannot find the answer in the provided documents."
 
 Context:
 {context_text}

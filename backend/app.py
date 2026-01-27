@@ -135,9 +135,11 @@ def chat():
     
     query = data['message']
     n_results = data.get('n_results', 3)
-    threshold = data.get('threshold', 0.55)
-    web_search_enabled = data.get('web_search', True)
-    talk_to_llm = data.get('talk_to_llm', False)
+    threshold = data.get('threshold', 0.45)
+    
+    # 'chat_mode' replaces 'web_search' and 'talk_to_llm'
+    # Values: 'document', 'web', 'llm'
+    chat_mode = data.get('chat_mode', 'document')
     
     try:
         rag_service = get_rag_service()
@@ -147,21 +149,39 @@ def chat():
         context_chunks = []
         formatted_sources = []
         
-        # LOGIC BRANCHING
-        if talk_to_llm:
-            # OPTION 1: Bypass RAG, chat directly with LLM
-            print("DEBUG: Mode = Talk to LLM (Bypassing Documents)")
+        # LOGIC BRANCHING BASED ON MODE
+        if chat_mode == "llm":
+            # OPTION 3: Bypass RAG, chat directly with LLM
+            print("DEBUG: Mode = LLM Only")
             source_type = "LLM Knowledge"
             # No context chunks needed for pure LLM chat
-        else:
-            # OPTION 2: Grounded in Documents (RAG)
-            print("DEBUG: Mode = Grounded in Documents")
+            
+        elif chat_mode == "web":
+            # OPTION 2: Web Search Only
+            print("DEBUG: Mode = Web Search Only")
+            web_service = WebSearchService()
+            web_results = web_service.search(query)
+            
+            if web_results:
+                source_type = "Web Search"
+                context_chunks = web_results
+                formatted_sources = [f"Web: {r['title']} ({r['source']})" for r in web_results]
+            else:
+                # If web search fails, what do we do?
+                # For strict mode, we might just say "No web results found".
+                # But typically we fall back to LLM or just return empty.
+                # Let's fallback to LLM knowledge but tag it.
+                print("DEBUG: Web search returned no results.")
+                source_type = "LLM Knowledge" # Soft fallback if web fails?
+                
+        else: 
+            # OPTION 1: Grounded in Documents (RAG) - Default 'document'
+            print("DEBUG: Mode = Documents (Strict)")
             
             # 1. Query Documents
             results = rag_service.query_documents(query, n_results)
             
             max_similarity = 0.0
-            found_high_quality_doc = False
             
             if results["success"] and results["results"]:
                 max_similarity = max([r.get("similarity", 0.0) for r in results["results"]])
@@ -170,7 +190,6 @@ def chat():
                 if max_similarity >= threshold:
                     source_type = "Document"
                     context_chunks = results["results"]
-                    found_high_quality_doc = True
                     
                     # Calculate source counts
                     source_counts = {}
@@ -179,31 +198,34 @@ def chat():
                         source_counts[source] = source_counts.get(source, 0) + 1
                     formatted_sources = [f"{src} ({count} chunks)" for src, count in source_counts.items()]
             
-            # 2. Fallback to Web Search (if enabled and no good doc found)
-            if not found_high_quality_doc and web_search_enabled:
-                print("DEBUG: Low/No document match, attempting Web Search...")
-                web_service = WebSearchService()
-                web_results = web_service.search(query)
-                
-                if web_results:
-                    source_type = "Web Search"
-                    context_chunks = web_results
-                    formatted_sources = [f"Web: {r['title']} ({r['source']})" for r in web_results]
-            
-            # 3. STRICT GROUNDING CHECK
-            # If we are in "RAG Mode" (talk_to_llm=False) and we have NO documents and NO web results,
-            # we should NOT fall back to LLM Knowledge. We should tell the user we couldn't find anything.
-            if source_type == "LLM Knowledge":
-                # This means we didn't find a Doc and didn't find Web results (or web disabled)
-                # But since talk_to_llm is False, we typically want to say "Not found".
-                # HOWEVER, the prompt in llm_service handles "I cannot find the answer".
-                # So we pass an empty context to Gemini with source_type="Document" (effectively),
-                # and let it say "I cannot find..."
-                source_type = "Document" # Force "Document" mode with empty context so it fails gracefully
-                formatted_sources = []
+            # STRICT GROUNDING: If no doc found, do NOT fallback to web or LLM.
+            if source_type != "Document":
+                 # Ensure we don't accidentally use LLM Knowledge mode
+                 source_type = "Document" 
+                 formatted_sources = [] 
+                 # prompt will handle empty context -> "I cannot find the answer"
                  
-        # 4. Generate Answer
-        answer = gemini_service.generate_response(query, context_chunks, source_type)
+        if "LLM" in source_type and chat_mode == "llm":
+            # For strict LLM mode, we MUST synthesize (raw retrieval makes no sense for pure generation)
+            answer = gemini_service.generate_response(query, context_chunks, source_type)
+        else:
+            # Check if user wants raw retrieval (No LLM)
+            synthesize_response = data.get('synthesize_response', True)
+            
+            if not synthesize_response and source_type != "LLM Knowledge":
+                print("DEBUG: Raw Retrieval Mode (Skipping LLM)")
+                if context_chunks:
+                    formatted_chunks = []
+                    for i, chunk in enumerate(context_chunks):
+                        content = chunk.get('content', '') or chunk.get('answer', '') # Handle web/doc difference
+                        src = chunk.get('source', 'Unknown')
+                        formatted_chunks.append(f"**Chunk {i+1}** (Source: {src}):\n{content}\n")
+                    answer = f"**Raw Retrieval Results ({len(context_chunks)} chunks):**\n\n" + "\n---\n".join(formatted_chunks)
+                else:
+                    answer = "No relevant documents found."
+            else:
+                 # Standard RAG Generation
+                 answer = gemini_service.generate_response(query, context_chunks, source_type)
         
         response = {
             "success": True,
