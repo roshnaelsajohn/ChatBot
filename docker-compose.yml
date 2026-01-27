@@ -11,6 +11,7 @@ services:
     volumes:
       - ./backend/chroma_db:/app/chroma_db
     environment:
+      - PYTHONUNBUFFERED=1
       - HF_HUB_DISABLE_SSL_VERIFY=1
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     networks:

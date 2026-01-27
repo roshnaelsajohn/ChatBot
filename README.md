@@ -1,38 +1,81 @@
-# ChatBot RAG Application
+# 🤖 AI RAG Chatbot
 
-A modern RAG (Retention Augmented Generation) Chatbot built with Flask, Streamlit, and Google Gemini.
+A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge.
 
-## Features
-- **Document Upload**: Support for PDF, DOCX, and TXT files.
-- **RAG Architecture**: Uses ChromaDB for vector storage and Nomic embeddings.
-- **AI Answers**: Integrated with Google Gemini (gemini-2.0-flash) for natural language responses.
-- **Dockerized**: Fully containerized for easy deployment.
+## 🚀 Technologies Used
 
-## Prerequisites
-- Docker & Docker Compose
-- Google Gemini API Key
+### **Frontend**
+*   **[Streamlit](https://streamlit.io/)**: For a fast, interactive, and beautiful user interface.
+*   **Python**: Core logic.
+*   **Custom CSS**: For a modern, dark-themed aesthetic.
 
-## Setup & Run
+### **Backend**
+*   **[Flask](https://flask.palletsprojects.com/)**: Lightweight REST API server.
+*   **[Google Gemini API](https://ai.google.dev/)**: Powered by `gemini-flash-lite-latest` (or `gemini-1.5-flash`) for fast and efficient inference.
+*   **[DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/)**: For real-time web search fallback.
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/roshnaelsajohn/chatbot2026.git
-    cd chatbot2026
+### **RAG & Database**
+*   **[ChromaDB](https://www.trychroma.com/)**: Open-source vector database for distinct document chunks.
+*   **[Nomic Embeddings](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)**: High-performance `nomic-embed-text-v1.5` model for generating semantic vectors.
+*   **[LangChain](https://www.langchain.com/)**: utilized for `RecursiveCharacterTextSplitter` to chunk documents intelligently.
+*   **Sentence Transformers**: For local embedding generation.
+
+### **Infrastructure**
+*   **[Docker](https://www.docker.com/)**: Containerization for consistent environments.
+*   **Docker Compose**: Orchestrates the Frontend and Backend services.
+
+---
+
+## 🛠 Features
+
+1.  **Hybrid RAG Logic**:
+    *   **Documents**: strict matching with similarity thresholds (default `0.55`).
+    *   **Web Search**: Auto-fallback if documents don't contain the answer.
+    *   **LLM Knowledge**: Fallback if all else fails (or explicitly toggled).
+2.  **File Support**: Upload PDF, DOCX, and TXT files.
+3.  **Duplicate Protection**: Prevents re-uploading the same file.
+4.  **Persistent Storage**: Vector database persists restarts via Docker volumes.
+5.  **Smart UI**: "Ask Documents" vs "Ask General Knowledge" toggle.
+
+---
+
+## 🏃‍♂️ How to Run
+
+1.  **Prerequisites**:
+    *   Docker & Docker Compose installed.
+    *   A Google Gemini API Key.
+
+2.  **Setup Environment**:
+    Create a `.env` file in the root directory:
+    ```env
+    GOOGLE_API_KEY=your_gemini_api_key_here
+    HF_HUB_DISABLE_SSL_VERIFY=1  # Optional: Fixes some SSL issues with downloading models
     ```
 
-2.  **Configure API Key**
-    - Open `docker-compose.yml` and replace the `GOOGLE_API_KEY` value with your key.
-    - OR set it as an environment variable in your shell.
-
-3.  **Run with Docker** (Single command)
+3.  **Start Application**:
     ```bash
-    docker-compose up --build -d
+    docker-compose up -d --build
     ```
 
-4.  **Access the App**
-    - Frontend: http://localhost:8501
-    - Backend API: http://localhost:5001/api
+4.  **Access**:
+    *   **Frontend**: [http://localhost:8501](http://localhost:8501)
+    *   **Backend API**: [http://localhost:5000/api/hello](http://localhost:5000/api/hello)
 
-## Troubleshooting
-- **Connection Refused**: Ensure backend is running (`docker ps`).
-- **404 Model Not Found**: Ensure you are using a supported Gemini model (currently `gemini-2.0-flash`).
+---
+
+## 📁 Project Structure
+
+```
+ChatBot/
+├── backend/            # Flask API & RAG Logic
+│   ├── app.py          # API Endpoints
+│   ├── rag_service.py  # ChromaDB & Embedding logic
+│   ├── llm_service.py  # Gemini Integration
+│   ├── web_search_service.py # DuckDuckGo Integration
+│   └── Dockerfile
+├── frontend/           # Streamlit UI
+│   ├── streamlit_app.py
+│   └── Dockerfile
+├── docker-compose.yml  # Container Orchestration
+└── README.md
+```

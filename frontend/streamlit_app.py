@@ -139,12 +139,12 @@ def publish_document(file):
         return {"success": False, "message": f"Connection error: {str(e)}"}
 
 
-def send_chat_message(message):
+def send_chat_message(message, talk_to_llm=False):
     """Send a message to the chat API and get a response."""
     try:
         response = requests.post(
             f"{API_BASE_URL}/chat",
-            json={"message": message, "n_results": 3},
+            json={"message": message, "n_results": 10, "talk_to_llm": talk_to_llm},
             timeout=300
         )
         return response.json()
@@ -161,6 +161,16 @@ def clear_collection():
         return {"success": False, "message": f"Connection error: {str(e)}"}
 
 
+def get_file_list():
+    """Fetch list of uploaded files from the API."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/files", timeout=5)
+        if response.status_code == 200:
+            return response.json().get("files", [])
+    except requests.exceptions.RequestException:
+        pass
+    return []
+
 def main():
     """Main application function."""
     init_session_state()
@@ -169,6 +179,9 @@ def main():
     with st.sidebar:
         st.markdown("## 📁 Document Upload")
         st.markdown("---")
+        
+        # Fetch current files from backend
+        current_files = get_file_list()
         
         # File uploader
         uploaded_file = st.file_uploader(
@@ -181,16 +194,21 @@ def main():
         if uploaded_file is not None:
             st.markdown(f"**Selected:** {uploaded_file.name}")
             
-            if st.button("🚀 Publish to Knowledge Base", use_container_width=True):
-                with st.spinner("Processing document..."):
-                    result = publish_document(uploaded_file)
-                    
-                if result.get("success"):
-                    st.success(f"✅ {result.get('message', 'Document published!')}")
-                    st.info(f"📊 Chunks added: {result.get('chunks_added', 0)}")
-                    st.session_state.uploaded_files.append(uploaded_file.name)
-                else:
-                    st.error(f"❌ {result.get('message', 'Failed to publish document')}")
+            # Check for duplicates
+            if uploaded_file.name in current_files:
+                st.warning(f"⚠️ File '{uploaded_file.name}' already exists in the knowledge base!")
+            else:
+                if st.button("🚀 Publish to Knowledge Base", use_container_width=True):
+                    with st.spinner("Processing document..."):
+                        result = publish_document(uploaded_file)
+                        
+                    if result.get("success"):
+                        st.success(f"✅ {result.get('message', 'Document published!')}")
+                        st.info(f"📊 Chunks added: {result.get('chunks_added', 0)}")
+                        st.session_state.uploaded_files.append(uploaded_file.name)
+                        st.rerun() # Rerun to update file list
+                    else:
+                        st.error(f"❌ {result.get('message', 'Failed to publish document')}")
         
         st.markdown("---")
         
@@ -202,7 +220,13 @@ def main():
         with col1:
             st.metric("Total Chunks", stats.get("total_chunks", 0))
         with col2:
-            st.metric("Documents", len(st.session_state.uploaded_files))
+            st.metric("Documents", len(current_files))
+            
+        # Display file list
+        if current_files:
+            with st.expander("📄 Uploaded Documents"):
+                for f in current_files:
+                    st.text(f"• {f}")
         
         st.markdown("---")
         
@@ -222,6 +246,16 @@ def main():
             st.session_state.messages = []
             st.rerun()
     
+        # Mode selection for chat
+        st.markdown("## ⚙️ Chat Mode")
+        mode = st.radio(
+            "Select capability:",
+            ["📚 Ask Documents (RAG)", "🧠 Ask General Knowledge (LLM)"],
+            index=0,
+            help="**Ask Documents**: Answers based ONLY on your uploaded files.\n**Ask General Knowledge**: Bypasses documents and uses the AI's own knowledge."
+        )
+        talk_to_llm = True if mode == "🧠 Ask General Knowledge (LLM)" else False
+    
     # Main chat area
     st.markdown("# 🤖 RAG Chatbot")
     st.markdown("*Ask questions about your uploaded documents*")
@@ -235,7 +269,7 @@ def main():
                 st.caption(f"📚 Sources: {', '.join(message['sources'])}")
     
     # Chat input
-    if prompt := st.chat_input("Ask a question about your documents..."):
+    if prompt := st.chat_input("Ask a question..."):
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
@@ -245,12 +279,13 @@ def main():
         # Get bot response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = send_chat_message(prompt)
+                response = send_chat_message(prompt, talk_to_llm)
             
             if response.get("success"):
                 answer = response.get("answer", "I couldn't find relevant information.")
                 sources = response.get("sources", [])
                 
+                # Show source tag in markdown (if backend sends it in answer, we can display, but we also have caption)
                 st.markdown(answer)
                 if sources:
                     st.caption(f"📚 Sources: {', '.join(sources)}")

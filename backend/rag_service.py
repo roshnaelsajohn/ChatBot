@@ -173,7 +173,8 @@ class RAGService:
                     formatted_results.append({
                         "content": doc,
                         "source": results["metadatas"][0][i]["source"],
-                        "score": results["distances"][0][i] if results["distances"] else 0
+                        "distance": results["distances"][0][i] if results["distances"] else 1.0,
+                        "similarity": 1.0 - (results["distances"][0][i] if results["distances"] else 1.0)
                     })
             
             return {"success": True, "results": formatted_results}
@@ -187,6 +188,41 @@ class RAGService:
             return {"total_chunks": self.collection.count()}
         except:
             return {"total_chunks": 0}
+
+    def get_all_documents(self) -> list:
+        """Get a list of all unique documents in the collection."""
+        try:
+            # We can't query distinctly easily with Chroma's basic API efficiently for large datasets,
+            # but for a small app, we can fetch all metadatas.
+            # A more efficient way for large datasets would be to maintain a separate 'files' collection or SQLite table.
+            # For this MVP, we'll fetch all metadatas (limit to 10000 chunks for safety).
+            result = self.collection.get(include=["metadatas"], limit=10000)
+            seen_files = set()
+            file_list = []
+            
+            if result and result["metadatas"]:
+                for meta in result["metadatas"]:
+                    source = meta.get("source")
+                    if source and source not in seen_files:
+                        seen_files.add(source)
+                        file_list.append(source)
+            
+            return sorted(list(file_list))
+        except Exception as e:
+            print(f"Error fetching documents: {e}")
+            return []    
+
+    def document_exists(self, filename: str) -> bool:
+        """Check if a document with the given filename already exists."""
+        try:
+            # Verify if any chunk has this source
+            result = self.collection.get(
+                where={"source": filename},
+                limit=1
+            )
+            return len(result["ids"]) > 0
+        except:
+            return False
 
     def clear_collection(self) -> dict:
         """Clear the collection."""
