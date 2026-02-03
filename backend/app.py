@@ -134,9 +134,9 @@ def chat():
         }), 400
     
     query = data['message']
-    n_results = data.get('n_results', 3)
-    threshold = data.get('threshold', 0.45)
-    
+    n_results = data.get('n_results', 15)
+    threshold = data.get('threshold', 0.55) # Aggressively raised to 0.55
+
     # 'chat_mode' replaces 'web_search' and 'talk_to_llm'
     # Values: 'document', 'web', 'llm'
     chat_mode = data.get('chat_mode', 'document')
@@ -181,19 +181,53 @@ def chat():
             # 1. Query Documents
             results = rag_service.query_documents(query, n_results)
             
-            max_similarity = 0.0
-            
             if results["success"] and results["results"]:
-                max_similarity = max([r.get("similarity", 0.0) for r in results["results"]])
-                print(f"DEBUG: Max Similarity: {max_similarity} (Threshold: {threshold})")
+                print(f"DEBUG: Default Threshold: {threshold}")
                 
-                if max_similarity >= threshold:
+                # HYBRID SEARCH LOGIC
+                # For short queries (keywords), we enforce exact matches to prevent semantic drift.
+                is_keyword_search = len(query.split()) < 3
+                refined_results = []
+                
+                for i, r in enumerate(results["results"]):
+                     score = round(r.get('similarity', 0.0), 3)
+                     src = r.get('source', 'unknown')
+                     content = r.get('content', '')
+                     snippet = content[:50].replace('\n', ' ')
+                     
+                     # Check for exact keyword match
+                     has_keyword = query.lower() in content.lower()
+                     
+                     print(f"DEBUG: Chunk {i} | Score: {score} | Keyword Match: {has_keyword} | File: {src} | Content: {snippet}...")
+                     
+                     # DECISION LOGIC:
+                     # 1. If it's a keyword search, REQUIRE the keyword OR a very high semantic score (>0.65)
+                     if is_keyword_search:
+                         if has_keyword:
+                             # Boost score for exact match if it was borderline
+                             if score >= 0.35: # Lower retrieval floor for exact matches
+                                 refined_results.append(r)
+                         elif score >= 0.65:
+                             # Keep high-confidence semantic matches even without keyword
+                             refined_results.append(r)
+                         else:
+                             print(f"DEBUG: Dropping Chunk {i} (No keyword match & score {score} < 0.65)")
+                     else:
+                         # Standard Semantic Search for longer queries
+                         if score >= threshold:
+                             refined_results.append(r)
+
+                relevant_chunks = refined_results
+                
+                print(f"DEBUG: Hybrid Filter keeping {len(relevant_chunks)}/{len(results['results'])} chunks.")
+                
+                if relevant_chunks:
                     source_type = "Document"
-                    context_chunks = results["results"]
+                    context_chunks = relevant_chunks
                     
                     # Calculate source counts
                     source_counts = {}
-                    for r in results["results"]:
+                    for r in relevant_chunks:
                         source = r["source"]
                         source_counts[source] = source_counts.get(source, 0) + 1
                     formatted_sources = [f"{src} ({count} chunks)" for src, count in source_counts.items()]
@@ -277,6 +311,23 @@ def clear_collection():
         return jsonify({
             "success": False,
             "message": f"Error clearing collection: {str(e)}"
+        }), 500
+
+
+@app.route("/api/files/<filename>", methods=["DELETE"])
+def delete_file(filename):
+    """Delete a specific file."""
+    try:
+        rag_service = get_rag_service()
+        result = rag_service.delete_document(filename)
+        status_code = 200 if result["success"] else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Error deleting file: {str(e)}"
         }), 500
 
 

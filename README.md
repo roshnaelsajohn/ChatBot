@@ -1,24 +1,23 @@
 # 🤖 AI RAG Chatbot
 
-A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge.
+A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge to provide accurate, reliable answers.
 
 ## 🚀 Technologies Used
 
 ### **Frontend**
-*   **[Streamlit](https://streamlit.io/)**: For a fast, interactive, and beautiful user interface.
-*   **Python**: Core logic.
-*   **Custom CSS**: For a modern, dark-themed aesthetic.
+*   **[React](https://react.dev/)**: Fast, single-page application (SPA).
+*   **[Tailwind CSS](https://tailwindcss.com/)**: Modern, utility-first styling.
+*   **Lucide Icons**: Beautiful, consistent iconography.
 
 ### **Backend**
 *   **[Flask](https://flask.palletsprojects.com/)**: Lightweight REST API server.
-*   **[Google Gemini API](https://ai.google.dev/)**: Powered by `gemini-flash-lite-latest` (or `gemini-1.5-flash`) for fast and efficient inference.
+*   **[Google Gemini API](https://ai.google.dev/)**: Powered by `gemini-flash-lite-latest` (or `gemini-2.0-flash-001`) for fast inference.
 *   **[DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/)**: For real-time web search fallback.
 
 ### **RAG & Database**
 *   **[ChromaDB](https://www.trychroma.com/)**: Open-source vector database for distinct document chunks.
 *   **[Nomic Embeddings](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)**: High-performance `nomic-embed-text-v1.5` model for generating semantic vectors.
-*   **[LangChain](https://www.langchain.com/)**: utilized for `RecursiveCharacterTextSplitter` to chunk documents intelligently.
-*   **Sentence Transformers**: For local embedding generation.
+*   **[LangChain](https://www.langchain.com/)**: Utilized for text splitting and document processing.
 
 ### **Infrastructure**
 *   **[Docker](https://www.docker.com/)**: Containerization for consistent environments.
@@ -26,16 +25,32 @@ A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Au
 
 ---
 
-## 🛠 Features
+## 🛠 Key Features
 
-1.  **Hybrid RAG Logic**:
-    *   **Documents**: strict matching with similarity thresholds (default `0.55`).
-    *   **Web Search**: Auto-fallback if documents don't contain the answer.
-    *   **LLM Knowledge**: Fallback if all else fails (or explicitly toggled).
-2.  **File Support**: Upload PDF, DOCX, and TXT files.
-3.  **Duplicate Protection**: Prevents re-uploading the same file.
-4.  **Persistent Storage**: Vector database persists restarts via Docker volumes.
-5.  **Smart UI**: "Ask Documents" vs "Ask General Knowledge" toggle.
+### **1. Advanced Retrieval Engine (Hybrid RAG)**
+*   **Hybrid Search**: 
+    *   **Semantic Search**: For complex queries, uses vector similarity (strict threshold > `0.55`).
+    *   **Keyword Boosting**: For short queries (e.g., "Street"), enforces exact keyword matches to prevent hallucination.
+*   **Strict Grounding**: Explicitly commanded to ignore irrelevant chunks.
+*   **Web Search Fallback**: Automatically searches the web if local documents are insufficient.
+
+### **2. Robust LLM Handling**
+*   **Rate Limit Protection**: Automatic exponential backoff for `429 Quota Exceeded` errors.
+*   **Precision Prompting**: Engineered system prompts that:
+    *   Enforce **bullet points** for readability.
+    *   Ban empty lists and broken numbering.
+    *   Require direct, concise answers without fluff.
+
+### **3. Modern Document Management**
+*   **Unified Dashboard**: View "Completed", "Pending", and "Failed" uploads in a single, filterable list.
+*   **Smart Filtering**: Filter files by status (All, Completed, Pending, Failed).
+*   **File Persistence**: Uploads survive container restarts via Docker volumes.
+*   **Detailed Status**: Visual badges for upload progress and errors.
+
+### **4. Interactive Chat UI**
+*   **Source Citations**: Beautiful "Blue Badge" citations showing exactly which file (or web result) was used.
+*   **Synthesize Toggle**: Option to get raw database chunks vs. a summarized AI answer (persisted preference).
+*   **Clean Aesthetics**: Polished message bubbles, auto-scrolling, and responsive layout.
 
 ---
 
@@ -49,7 +64,7 @@ A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Au
     Create a `.env` file in the root directory:
     ```env
     GOOGLE_API_KEY=your_gemini_api_key_here
-    HF_HUB_DISABLE_SSL_VERIFY=1  # Optional: Fixes some SSL issues with downloading models
+    HF_HUB_DISABLE_SSL_VERIFY=1  # Optional: Fixes SSL issues with model downloads
     ```
 
 3.  **Start Application**:
@@ -59,7 +74,7 @@ A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Au
 
 4.  **Access**:
     *   **Frontend**: [http://localhost:8501](http://localhost:8501)
-    *   **Backend API**: [http://localhost:5000/api/hello](http://localhost:5000/api/hello)
+    *   **Backend API**: [http://localhost:5001](http://localhost:5001)
 
 ---
 
@@ -68,13 +83,15 @@ A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Au
 ```
 ChatBot/
 ├── backend/            # Flask API & RAG Logic
-│   ├── app.py          # API Endpoints
+│   ├── app.py          # API Endpoints & Hybrid Search
+│   ├── bl_service.py   # Rate-limited Gemini Integration
 │   ├── rag_service.py  # ChromaDB & Embedding logic
-│   ├── llm_service.py  # Gemini Integration
-│   ├── web_search_service.py # DuckDuckGo Integration
-│   └── Dockerfile
-├── frontend/           # Streamlit UI
-│   ├── streamlit_app.py
+│   └── web_search_service.py 
+├── frontend-react/     # React UI
+│   ├── src/
+│   │   ├── components/ # ChatView, DocumentsView, Navigation
+│   │   ├── api.js      # Frontend API Client
+│   │   └── App.jsx     # Main Router
 │   └── Dockerfile
 ├── docker-compose.yml  # Container Orchestration
 └── README.md

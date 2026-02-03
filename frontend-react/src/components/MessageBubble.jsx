@@ -53,9 +53,10 @@ const MessageBubble = ({ role, content, sources, sourceType }) => {
                                 {sources.map((src, idx) => (
                                     <span
                                         key={idx}
-                                        className="inline-flex items-center gap-1 px-2 py-1 bg-black/30 border border-border/50 rounded text-[10px] text-gray-400"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 border border-blue-100 rounded-md text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-default"
+                                        title="Source Document"
                                     >
-                                        <FileText size={10} />
+                                        <FileText size={12} className="text-blue-500" />
                                         {src}
                                     </span>
                                 ))}

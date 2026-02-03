@@ -14,11 +14,24 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Chat Settings
+  // Chat Settings
   const [chatMode, setChatMode] = useState('document');
-  const [synthesizeResponse, setSynthesizeResponse] = useState(true);
+  const [synthesizeResponse, setSynthesizeResponse] = useState(() => {
+    // Persist setting across refreshes, default to FALSE (disabled)
+    const saved = localStorage.getItem('synthesizeResponse');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  // Save setting whenever it changes
+  useEffect(() => {
+    localStorage.setItem('synthesizeResponse', JSON.stringify(synthesizeResponse));
+  }, [synthesizeResponse]);
 
   useEffect(() => {
     refreshData();
+    // Poll every 5 seconds to ensure data is fresh and recover from startup race conditions
+    const interval = setInterval(refreshData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const refreshData = async () => {
@@ -64,7 +77,7 @@ function App() {
       <div className="flex h-screen bg-background text-text overflow-hidden font-sans flex-col">
         <Header />
         <div className="flex flex-1 overflow-hidden">
-          <Navigation />
+          <Navigation fileList={fileList} onRefresh={refreshData} />
           <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

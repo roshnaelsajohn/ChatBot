@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Default to localhost:5000 if env var not set
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -23,6 +23,8 @@ export const getStats = async () => {
 export const getFiles = async () => {
     try {
         const response = await api.get('/files');
+        console.log("DEBUG: getFiles response:", response); // Debug Log
+        console.log("DEBUG: getFiles data:", response.data); // Debug Log
         return response.data.files || [];
     } catch (error) {
         console.error("Error fetching files:", error);
@@ -56,6 +58,16 @@ export const clearCollection = async () => {
         const response = await api.post('/clear');
         return response.data;
     } catch (error) {
+        return { success: false, message: error.message };
+    }
+};
+
+export const deleteFile = async (filename) => {
+    try {
+        const response = await api.delete(`/files/${encodeURIComponent(filename)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error deleting file:", error);
         return { success: false, message: error.message };
     }
 };
