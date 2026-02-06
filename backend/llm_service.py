@@ -30,8 +30,12 @@ Answer:"""
 Source: {source_type}
 
 Instructions:
-- If the query is a question, answer it.
-- If the query is a keyword or concept, explain it or summarize relevant details from the context.
+- Answer the user's question specifically and directly using **bullet points**.
+- Only provide information that is strictly relevant to the question or topic given.
+- Analyze the provided chunks. Use ONLY the chunks that are directly relevant to the user's {query}.
+- IGNORE chunks that are from unrelated documents or do not answer the specific question.
+- Do NOT generate empty list items, broken numbering, or whitespace-only lines.
+- If the query is a keyword, summarize the key information related to it concisely.
 - If the answer is not in the context, say "I cannot find the answer in the provided documents."
 
 Context:
@@ -44,12 +48,32 @@ Answer:"""
             
             print(f"DEBUG: Using model {self.model.model_name}")
             print(f"DEBUG: Source Type: {source_type}")
-            print(f"DEBUG: Prompt preview: {prompt[:500]}...")
+            
+            # Retry logic for 429/Quota Exceeded
+            max_retries = 3
+            retry_delay = 5 # Start with 5 seconds (as per error message suggesting ~11s, we will ramp up)
+            
+            import time
+            from google.api_core.exceptions import ResourceExhausted
 
-            response = self.model.generate_content(prompt)
-            # Prepend source tag to the answer if not already there (the user requested clear source tags)
-            final_answer = f"[{source_type}] {response.text}"
-            return final_answer
+            for attempt in range(max_retries):
+                try:
+                    response = self.model.generate_content(prompt)
+                    final_answer = f"[{source_type}] {response.text}"
+                    return final_answer
+                except ResourceExhausted:
+                    print(f"WARN: Quota exceeded (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2 # Exponential backoff: 5, 10, 20
+                except Exception as e:
+                    if "429" in str(e) or "Quota exceeded" in str(e) or "quota" in str(e).lower():
+                         print(f"WARN: Quota/Rate Limit error (Attempt {attempt+1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
+                         time.sleep(retry_delay)
+                         retry_delay *= 2
+                    else:
+                        raise e
+            
+            return "Error: Quota exceeded. Please try again later."
             
         except Exception as e:
             return f"Error generating response: {str(e)}"

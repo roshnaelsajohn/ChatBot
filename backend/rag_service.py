@@ -224,6 +224,17 @@ class RAGService:
         except:
             return False
 
+    def delete_document(self, filename: str) -> dict:
+        """Delete a document by filename."""
+        try:
+            # Delete entries where source equals filename
+            self.collection.delete(
+                where={"source": filename}
+            )
+            return {"success": True, "message": f"Document '{filename}' deleted"}
+        except Exception as e:
+            return {"success": False, "message": f"Error deleting document: {str(e)}"}
+
     def clear_collection(self) -> dict:
         """Clear the collection."""
         try:
