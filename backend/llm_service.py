@@ -26,17 +26,17 @@ User Question: {query}
 Answer:"""
             else:
                 context_text = "\n\n".join([chunk["content"] for chunk in context_chunks])
-                prompt = f"""You are a helpful AI assistant. Your task is to answer the user's question based ONLY on the provided context.
+                prompt = f"""You are a document assistant. Your task is to answer based ONLY on the provided context.
 Source: {source_type}
 
-Instructions:
-- Answer the user's question specifically and directly using **bullet points**.
-- Only provide information that is strictly relevant to the question or topic given.
-- Analyze the provided chunks. Use ONLY the chunks that are directly relevant to the user's {query}.
-- IGNORE chunks that are from unrelated documents or do not answer the specific question.
-- Do NOT generate empty list items, broken numbering, or whitespace-only lines.
-- If the query is a keyword, summarize the key information related to it concisely.
-- If the answer is not in the context, say "I cannot find the answer in the provided documents."
+Rules:
+- Use ONLY the information provided in the Context below.
+- Rewrite and structure the answer clearly.
+- Do NOT copy large paragraphs from the context.
+- When the answer contains a process → return it as numbered steps.
+- When the answer contains a list of items → return it as bullet points.
+- When providing definitions → use short concise sentences.
+- If the answer is not in the context, reply: "I don’t have information about that in the provided documents."
 
 Context:
 {context_text}
@@ -46,34 +46,53 @@ Question:
 
 Answer:"""
             
-            print(f"DEBUG: Using model {self.model.model_name}")
-            print(f"DEBUG: Source Type: {source_type}")
-            
-            # Retry logic for 429/Quota Exceeded
-            max_retries = 3
-            retry_delay = 5 # Start with 5 seconds (as per error message suggesting ~11s, we will ramp up)
+            # Fallback Strategy
+            models_to_try = [
+                'gemini-2.0-flash-001',
+                'gemini-2.0-flash-lite-preview-02-05',
+                'gemini-flash-latest',
+                'gemini-pro-latest'
+            ]
             
             import time
             from google.api_core.exceptions import ResourceExhausted
 
-            for attempt in range(max_retries):
+            for model_name in models_to_try:
                 try:
-                    response = self.model.generate_content(prompt)
-                    final_answer = f"[{source_type}] {response.text}"
-                    return final_answer
-                except ResourceExhausted:
-                    print(f"WARN: Quota exceeded (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
-                    time.sleep(retry_delay)
-                    retry_delay *= 2 # Exponential backoff: 5, 10, 20
+                    print(f"DEBUG: Attempting with model: {model_name}")
+                    self.model = genai.GenerativeModel(model_name)
+                    
+                    # Retry logic per model
+                    max_retries = 2
+                    retry_delay = 2
+                    
+                    for attempt in range(max_retries):
+                        try:
+                            response = self.model.generate_content(prompt)
+                            final_answer = f"[{source_type}] {response.text}"
+                            return final_answer
+                        except ResourceExhausted:
+                            print(f"WARN: Quota exceeded for {model_name}. Moving to next model...")
+                            break # Break inner loop to try next model
+                        except Exception as e:
+                            if "429" in str(e) or "Quota exceeded" in str(e) or "quota" in str(e).lower():
+                                 print(f"WARN: Rate Limit for {model_name} (Attempt {attempt+1}/{max_retries}). Retrying...")
+                                 time.sleep(retry_delay)
+                                 retry_delay *= 2
+                            else:
+                                raise e # Unknown error, maybe next model can handle? or just fail.
+                                # Let's try next model for any error to be safe? 
+                                # No, syntax errors etc should crash. But typically 500s or overloads might be model specific.
+                                # Let's stick to Quota/429 being the trigger for retries, and ResourceExhausted for model switch.
+                                
+                    # If we exhausted retries for this model without success (but not ResourceExhausted which breaks early),
+                    # we continue to next model.
+                    
                 except Exception as e:
-                    if "429" in str(e) or "Quota exceeded" in str(e) or "quota" in str(e).lower():
-                         print(f"WARN: Quota/Rate Limit error (Attempt {attempt+1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
-                         time.sleep(retry_delay)
-                         retry_delay *= 2
-                    else:
-                        raise e
-            
-            return "Error: Quota exceeded. Please try again later."
+                     print(f"Error with model {model_name}: {e}")
+                     continue
+
+            return "Error: All available models are currently overloaded or quota exceeded. Please try again later."
             
         except Exception as e:
             return f"Error generating response: {str(e)}"
