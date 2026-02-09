@@ -1,8 +1,12 @@
-# 🤖 AI RAG Chatbot
+# ChatBot
 
 A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge to provide accurate, reliable answers.
 
-## 🚀 Technologies Used
+### Enhanced Retrieval-Augmented Generation (RAG) Model
+Our latest enhancements to the RAG model focus on improving performance and accuracy. Key updates include:
+- Fine-tuning with a larger dataset
+- Reduced latency in response generation
+- Improved understanding of context and nuance
 
 ### **Frontend**
 *   **[React](https://react.dev/)**: Fast, single-page application (SPA).
