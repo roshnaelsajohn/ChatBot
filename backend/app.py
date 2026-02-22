@@ -13,6 +13,8 @@ from llm_service import GeminiService
 from web_search_service import WebSearchService
 from monitoring_service import get_monitoring_service
 import datetime
+from dotenv import load_dotenv
+load_dotenv()   
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Streamlit frontend

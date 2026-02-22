@@ -60,25 +60,10 @@ Our latest enhancements to the RAG model focus on improving performance and accu
 
 ## 🏃‍♂️ How to Run
 
-1.  **Prerequisites**:
-    *   Docker & Docker Compose installed.
-    *   A Google Gemini API Key.
-
-2.  **Setup Environment**:
-    Create a `.env` file in the root directory:
-    ```env
-    GOOGLE_API_KEY=your_gemini_api_key_here
-    HF_HUB_DISABLE_SSL_VERIFY=1  # Optional: Fixes SSL issues with model downloads
-    ```
-
+    ANTHROPIC_API_KEY=your_anthropic_api_key_here
+    
 3.  **Start Application**:
-    ```bash
-    docker-compose up -d --build
-    ```
-
-4.  **Access**:
-    *   **Frontend**: [http://localhost:8501](http://localhost:8501)
-    *   **Backend API**: [http://localhost:5001](http://localhost:5001)
+    
 
 ---
 
