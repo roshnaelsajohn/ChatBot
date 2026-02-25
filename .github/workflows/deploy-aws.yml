@@ -12,6 +12,7 @@ env:
   ECS_SERVICE: testfly-service
   ECS_CLUSTER: testfly-ai-cluster
   CONTAINER_NAME: chatbot-backend
+  TASK_DEFINITION: testflytaskdef
 
 jobs:
   deploy:
