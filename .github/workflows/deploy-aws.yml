@@ -8,9 +8,9 @@ on:
 
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: chatbot-backend
-  ECS_SERVICE: chatbot-backend-service
-  ECS_CLUSTER: chatbot-cluster
+  ECR_REPOSITORY: testfyai
+  ECS_SERVICE: testfly-service
+  ECS_CLUSTER: testfly-ai-cluster
   CONTAINER_NAME: chatbot-backend
 
 jobs:
