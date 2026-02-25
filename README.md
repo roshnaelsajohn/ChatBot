@@ -1,69 +1,122 @@
-# ChatBot
+# ChatBot — Hybrid RAG AI Assistant
 
-A modern, containerized Chatbot application featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge to provide accurate, reliable answers.
+A modern, containerized chatbot featuring **Hybrid RAG (Retrieval-Augmented Generation)**. It intelligently switches between strict document grounding, web search, and general LLM knowledge to provide accurate, reliable answers.
 
-### Enhanced Retrieval-Augmented Generation (RAG) Model
-Our latest enhancements to the RAG model focus on improving performance and accuracy. Key updates include:
-- Fine-tuning with a larger dataset
-- Reduced latency in response generation
-- Improved understanding of context and nuance
+---
+
+## 🧱 Tech Stack
 
 ### **Frontend**
-*   **[React](https://react.dev/)**: Fast, single-page application (SPA).
-*   **[Tailwind CSS](https://tailwindcss.com/)**: Modern, utility-first styling.
-*   **Lucide Icons**: Beautiful, consistent iconography.
+- **[React](https://react.dev/)** — Fast, single-page application (SPA)
+- **[Tailwind CSS](https://tailwindcss.com/)** — Modern utility-first styling
+- **Lucide Icons** — Consistent iconography
 
 ### **Backend**
-*   **[Flask](https://flask.palletsprojects.com/)**: Lightweight REST API server.
-*   **[Google Gemini API](https://ai.google.dev/)**: Powered by `gemini-flash-lite-latest` (or `gemini-2.0-flash-001`) for fast inference.
-*   **[DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/)**: For real-time web search fallback.
+- **[Flask](https://flask.palletsprojects.com/)** — Lightweight REST API server
+- **[Anthropic Claude API](https://www.anthropic.com/)** — LLM powered by `claude-3-5-sonnet` with automatic fallback to `claude-3-5-haiku` and `claude-3-haiku`
+- **[DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/)** — Real-time web search fallback
 
 ### **RAG & Database**
-*   **[ChromaDB](https://www.trychroma.com/)**: Open-source vector database for distinct document chunks.
-*   **[Nomic Embeddings](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)**: High-performance `nomic-embed-text-v1.5` model for generating semantic vectors.
-*   **[LangChain](https://www.langchain.com/)**: Utilized for text splitting and document processing.
+- **[ChromaDB](https://www.trychroma.com/)** — Vector database for document chunks
+- **[Nomic Embeddings](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)** — `nomic-embed-text-v1.5` for semantic vector generation
+- **[LangChain](https://www.langchain.com/)** — Text splitting and processing
+
+### **Observability**
+- **[LangSmith](https://smith.langchain.com/)** — Full LLM trace logging via `@traceable`, tracked under the `TestFlyAI` project
 
 ### **Infrastructure**
-*   **[Docker](https://www.docker.com/)**: Containerization for consistent environments.
-*   **Docker Compose**: Orchestrates the Frontend and Backend services.
+- **[Docker](https://www.docker.com/)** & **Docker Compose** — Containerised services
 
 ---
 
 ## 🛠 Key Features
 
-### **1. Advanced Retrieval Engine (Hybrid RAG)**
-*   **Hybrid Search**: 
-    *   **Semantic Search**: For complex queries, uses vector similarity (strict threshold > `0.55`).
-    *   **Keyword Boosting**: For short queries (e.g., "Street"), enforces exact keyword matches to prevent hallucination.
-*   **Strict Grounding**: Explicitly commanded to ignore irrelevant chunks.
-*   **Web Search Fallback**: Automatically searches the web if local documents are insufficient.
+### 1. Advanced Retrieval Engine (Hybrid RAG)
+- **Semantic Search** — Vector similarity with a strict `0.55` threshold for complex queries
+- **Keyword Boosting** — Exact keyword matching for short queries to prevent hallucination
+- **Web Search Fallback** — Automatically searches the web when local documents are insufficient
+- **Three Chat Modes** — `Document`, `Web`, or `LLM Knowledge`
 
-### **2. Robust LLM Handling**
-*   **Rate Limit Protection**: Automatic exponential backoff for `429 Quota Exceeded` errors.
-*   **Precision Prompting**: Engineered system prompts that:
-    *   Enforce **bullet points** for readability.
-    *   Ban empty lists and broken numbering.
-    *   Require direct, concise answers without fluff.
+### 2. Robust LLM Handling (Claude)
+- **Model Fallback Chain** — `claude-3-5-sonnet` → `claude-3-5-haiku` → `claude-3-haiku`
+- **Rate Limit Protection** — Automatically tries the next model on `RateLimitError`
+- **Precision Prompting** — Structured system prompts for bullet points, numbered steps, and direct answers
 
-### **3. Modern Document Management**
-*   **Unified Dashboard**: View "Completed", "Pending", and "Failed" uploads in a single, filterable list.
-*   **Smart Filtering**: Filter files by status (All, Completed, Pending, Failed).
-*   **File Persistence**: Uploads survive container restarts via Docker volumes.
-*   **Detailed Status**: Visual badges for upload progress and errors.
+### 3. LangSmith Tracing
+- Every `generate_response()` call is traced with `@traceable`
+- Traces appear in **LangSmith → Project: TestFlyAI**
 
-### **4. Interactive Chat UI**
-*   **Source Citations**: Beautiful "Blue Badge" citations showing exactly which file (or web result) was used.
-*   **Synthesize Toggle**: Option to get raw database chunks vs. a summarized AI answer (persisted preference).
-*   **Clean Aesthetics**: Polished message bubbles, auto-scrolling, and responsive layout.
+### 4. Document Management
+- Upload **PDF, DOCX, PPTX, HTML, Markdown, TXT**
+- Smart deduplication — rejects duplicate file uploads
+- File persistence via Docker volumes (survives restarts)
+- Filterable dashboard — All / Completed / Pending / Failed
+
+### 5. Interactive Chat UI
+- Source citations showing which document/web result was used
+- Synthesize toggle — raw database chunks vs. AI-summarised answer
+- Polished message bubbles with auto-scroll
 
 ---
 
 ## 🏃‍♂️ How to Run
 
-    ANTHROPIC_API_KEY=your_anthropic_api_key_here
-    
-3.  **Start Application**:
-    
+### Prerequisites
+- Docker & Docker Compose
+- Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
+- LangSmith API key — [smith.langchain.com](https://smith.langchain.com) *(optional, for tracing)*
+
+### 1. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and fill in your keys:
+
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here         # optional
+
+LANGSMITH_TRACING=true
+LANGCHAIN_TRACING_V2=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_PROJECT=TestFlyAI
+```
+
+### 2. Start the application
+
+```bash
+docker-compose up --build -d
+```
+
+### 3. Access
+
+| Service | URL |
+|---|---|
+| 🖥️ Frontend | http://localhost:8501 |
+| ⚙️ Backend API | http://localhost:5001 |
+| 📊 LangSmith | https://smith.langchain.com |
+
+### Stop
+
+```bash
+docker-compose down
+```
+
+### Run locally (without Docker)
+
+```bash
+# Backend
+source .venv/bin/activate
+cd backend && python app.py
+
+# Frontend (separate terminal)
+cd frontend-react
+npm install
+npm run dev
+```
 
 ---
 
@@ -71,17 +124,36 @@ Our latest enhancements to the RAG model focus on improving performance and accu
 
 ```
 ChatBot/
-├── backend/            # Flask API & RAG Logic
-│   ├── app.py          # API Endpoints & Hybrid Search
-│   ├── bl_service.py   # Rate-limited Gemini Integration
-│   ├── rag_service.py  # ChromaDB & Embedding logic
-│   └── web_search_service.py 
-├── frontend-react/     # React UI
+├── backend/
+│   ├── app.py                  # Flask API endpoints
+│   ├── llm_service.py          # Anthropic Claude integration + LangSmith tracing
+│   ├── rag_service.py          # ChromaDB & Nomic embedding logic
+│   ├── web_search_service.py   # DuckDuckGo search
+│   ├── monitoring_service.py   # Interaction logging
+│   └── requirement.txt
+├── frontend-react/             # React UI
 │   ├── src/
-│   │   ├── components/ # ChatView, DocumentsView, Navigation
-│   │   ├── api.js      # Frontend API Client
-│   │   └── App.jsx     # Main Router
+│   │   ├── components/         # ChatView, DocumentsView, Navigation
+│   │   ├── api.js              # Frontend API client
+│   │   └── App.jsx             # Main router
 │   └── Dockerfile
-├── docker-compose.yml  # Container Orchestration
+├── main.py                     # Standalone LangSmith tracing demo
+├── .env                        # Secrets (git-ignored)
+├── .env.example                # Template (safe to commit)
+├── docker-compose.yml
 └── README.md
 ```
+
+---
+
+## 🔐 Environment Variables Reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ | Claude API key |
+| `OPENAI_API_KEY` | Optional | OpenAI API key |
+| `LANGSMITH_API_KEY` | Optional | LangSmith tracing key |
+| `LANGSMITH_PROJECT` | Optional | LangSmith project name (default: `TestFlyAI`) |
+| `LANGSMITH_TRACING` | Optional | Enable tracing (`true`/`false`) |
+| `LANGCHAIN_TRACING_V2` | Optional | Required by `@traceable` decorator (`true`) |
+| `HF_HUB_DISABLE_SSL_VERIFY` | Optional | Disable SSL for HuggingFace downloads (`1`) |
