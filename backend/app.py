@@ -10,8 +10,11 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from rag_service import get_rag_service
 from llm_service import GeminiService
-
 from web_search_service import WebSearchService
+from monitoring_service import get_monitoring_service
+import datetime
+from dotenv import load_dotenv
+load_dotenv()   
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Streamlit frontend
@@ -21,7 +24,7 @@ CORS(app)  # Enable CORS for Streamlit frontend
 
 # Configuration
 UPLOAD_FOLDER = tempfile.gettempdir()
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'pptx', 'html', 'md'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -135,7 +138,8 @@ def chat():
     
     query = data['message']
     n_results = data.get('n_results', 15)
-    threshold = data.get('threshold', 0.55) # Aggressively raised to 0.55
+    threshold = data.get('threshold', 0.55)
+    synthesize_response = data.get('synthesize_response', True)
 
     # 'chat_mode' replaces 'web_search' and 'talk_to_llm'
     # Values: 'document', 'web', 'llm'
@@ -144,6 +148,7 @@ def chat():
     try:
         rag_service = get_rag_service()
         gemini_service = GeminiService()
+        monitor = get_monitoring_service()
         
         source_type = "LLM Knowledge"
         context_chunks = []
@@ -151,13 +156,10 @@ def chat():
         
         # LOGIC BRANCHING BASED ON MODE
         if chat_mode == "llm":
-            # OPTION 3: Bypass RAG, chat directly with LLM
             print("DEBUG: Mode = LLM Only")
             source_type = "LLM Knowledge"
-            # No context chunks needed for pure LLM chat
             
         elif chat_mode == "web":
-            # OPTION 2: Web Search Only
             print("DEBUG: Mode = Web Search Only")
             web_service = WebSearchService()
             web_results = web_service.search(query)
@@ -167,15 +169,11 @@ def chat():
                 context_chunks = web_results
                 formatted_sources = [f"Web: {r['title']} ({r['source']})" for r in web_results]
             else:
-                # If web search fails, what do we do?
-                # For strict mode, we might just say "No web results found".
-                # But typically we fall back to LLM or just return empty.
-                # Let's fallback to LLM knowledge but tag it.
                 print("DEBUG: Web search returned no results.")
-                source_type = "LLM Knowledge" # Soft fallback if web fails?
+                source_type = "LLM Knowledge" 
                 
         else: 
-            # OPTION 1: Grounded in Documents (RAG) - Default 'document'
+            # OPTION 1: Grounded in Documents (RAG)
             print("DEBUG: Mode = Documents (Strict)")
             
             # 1. Query Documents
@@ -184,40 +182,8 @@ def chat():
             if results["success"] and results["results"]:
                 print(f"DEBUG: Default Threshold: {threshold}")
                 
-                # HYBRID SEARCH LOGIC
-                # For short queries (keywords), we enforce exact matches to prevent semantic drift.
-                is_keyword_search = len(query.split()) < 3
-                refined_results = []
-                
-                for i, r in enumerate(results["results"]):
-                     score = round(r.get('similarity', 0.0), 3)
-                     src = r.get('source', 'unknown')
-                     content = r.get('content', '')
-                     snippet = content[:50].replace('\n', ' ')
-                     
-                     # Check for exact keyword match
-                     has_keyword = query.lower() in content.lower()
-                     
-                     print(f"DEBUG: Chunk {i} | Score: {score} | Keyword Match: {has_keyword} | File: {src} | Content: {snippet}...")
-                     
-                     # DECISION LOGIC:
-                     # 1. If it's a keyword search, REQUIRE the keyword OR a very high semantic score (>0.65)
-                     if is_keyword_search:
-                         if has_keyword:
-                             # Boost score for exact match if it was borderline
-                             if score >= 0.35: # Lower retrieval floor for exact matches
-                                 refined_results.append(r)
-                         elif score >= 0.65:
-                             # Keep high-confidence semantic matches even without keyword
-                             refined_results.append(r)
-                         else:
-                             print(f"DEBUG: Dropping Chunk {i} (No keyword match & score {score} < 0.65)")
-                     else:
-                         # Standard Semantic Search for longer queries
-                         if score >= threshold:
-                             refined_results.append(r)
-
-                relevant_chunks = refined_results
+                # 2. Rerank Results (Hybrid Search)
+                relevant_chunks = rag_service.rerank_results(results["results"], query, threshold)
                 
                 print(f"DEBUG: Hybrid Filter keeping {len(relevant_chunks)}/{len(results['results'])} chunks.")
                 
@@ -230,36 +196,36 @@ def chat():
                     for r in relevant_chunks:
                         source = r["source"]
                         source_counts[source] = source_counts.get(source, 0) + 1
-                    formatted_sources = [f"{src} ({count} chunks)" for src, count in source_counts.items()]
-            
-            # STRICT GROUNDING: If no doc found, do NOT fallback to web or LLM.
-            if source_type != "Document":
-                 # Ensure we don't accidentally use LLM Knowledge mode
-                 source_type = "Document" 
-                 formatted_sources = [] 
-                 # prompt will handle empty context -> "I cannot find the answer"
-                 
-        if "LLM" in source_type and chat_mode == "llm":
-            # For strict LLM mode, we MUST synthesize (raw retrieval makes no sense for pure generation)
-            answer = gemini_service.generate_response(query, context_chunks, source_type)
+                    formatted_sources = [f"{src}" for src in source_counts.keys()]
+
+        # Generate Answer
+        start_time = datetime.datetime.now()
+        
+        if not synthesize_response and source_type != "LLM Knowledge":
+             print("DEBUG: Raw Retrieval Mode (Skipping LLM)")
+             if context_chunks:
+                 formatted_chunks = []
+                 for i, chunk in enumerate(context_chunks):
+                     content = chunk.get('content', '') or chunk.get('answer', '')
+                     src = chunk.get('source', 'Unknown')
+                     formatted_chunks.append(f"**Chunk {i+1}** (Source: {src}):\n{content}\n")
+                 answer = f"**Raw Retrieval Results ({len(context_chunks)} chunks):**\n\n" + "\n---\n".join(formatted_chunks)
+             else:
+                 answer = "No relevant documents found."
         else:
-            # Check if user wants raw retrieval (No LLM)
-            synthesize_response = data.get('synthesize_response', True)
-            
-            if not synthesize_response and source_type != "LLM Knowledge":
-                print("DEBUG: Raw Retrieval Mode (Skipping LLM)")
-                if context_chunks:
-                    formatted_chunks = []
-                    for i, chunk in enumerate(context_chunks):
-                        content = chunk.get('content', '') or chunk.get('answer', '') # Handle web/doc difference
-                        src = chunk.get('source', 'Unknown')
-                        formatted_chunks.append(f"**Chunk {i+1}** (Source: {src}):\n{content}\n")
-                    answer = f"**Raw Retrieval Results ({len(context_chunks)} chunks):**\n\n" + "\n---\n".join(formatted_chunks)
-                else:
-                    answer = "No relevant documents found."
-            else:
-                 # Standard RAG Generation
-                 answer = gemini_service.generate_response(query, context_chunks, source_type)
+             answer = gemini_service.generate_response(query, context_chunks, source_type)
+        
+        end_time = datetime.datetime.now()
+        latency = (end_time - start_time).total_seconds() * 1000
+
+        # Log Interaction
+        monitor.log_interaction(
+            query=query,
+            response=answer,
+            source_type=source_type,
+            sources=formatted_sources,
+            latency_ms=latency
+        )
         
         response = {
             "success": True,

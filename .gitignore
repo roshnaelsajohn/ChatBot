@@ -1,5 +1,23 @@
+# ── Secrets & environment variables ──────────────────────────
 .env
+frontend-react/.env
+# Keep .env.example tracked (it has no real secrets)
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────
 .venv
 __pycache__
 *.pyc
+*.pyo
+
+# ── Vector DB ─────────────────────────────────────────────────
 chroma_db/
+
+# ── Node / React ──────────────────────────────────────────────
+node_modules/
+frontend-react/node_modules/
+frontend-react/dist/
+
+# ── OS / Editor ───────────────────────────────────────────────
+.DS_Store
+*.log
