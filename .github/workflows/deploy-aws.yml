@@ -53,15 +53,57 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "✅ Image pushed successfully"
 
-      - name: Download task definition
+      - name: Download and clean task definition
         run: |
           echo "Downloading task definition: ${{ env.TASK_DEFINITION_FAMILY }}"
+          
+          # Download full task definition
           aws ecs describe-task-definition \
             --task-definition ${{ env.TASK_DEFINITION_FAMILY }} \
-            --region ${{ env.AWS_REGION }} \
-            --query taskDefinition > task-definition.json
+            --region ${{ env.AWS_REGION }} > full-task-def.json
           
-          echo "✅ Task definition downloaded"
+          # Extract and clean using Python
+          python3 << 'EOF'
+          import json
+          
+          # Read the full task definition
+          with open('full-task-def.json', 'r') as f:
+              data = json.load(f)
+          
+          task_def = data['taskDefinition']
+          
+          # List of fields to remove (metadata/read-only fields)
+          fields_to_remove = [
+              'taskDefinitionArn',
+              'revision',
+              'status',
+              'requiresAttributes',
+              'compatibilities',
+              'registeredAt',
+              'registeredBy',
+              'deregisteredAt',
+              'enableFaultInjection'
+          ]
+          
+          # Remove unwanted fields from root
+          for field in fields_to_remove:
+              task_def.pop(field, None)
+          
+          # Also clean container definitions
+          if 'containerDefinitions' in task_def:
+              for container in task_def['containerDefinitions']:
+                  container.pop('enableFaultInjection', None)
+          
+          # Write cleaned task definition
+          with open('task-definition.json', 'w') as f:
+              json.dump(task_def, f, indent=2)
+          
+          print("✅ Task definition cleaned successfully")
+          print(f"Family: {task_def.get('family')}")
+          print(f"Container: {task_def['containerDefinitions'][0].get('name')}")
+          EOF
+          
+          echo "✅ Task definition ready for deployment"
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
@@ -81,12 +123,15 @@ jobs:
 
       - name: Deployment summary
         run: |
-          echo "════════════════════════════════════════"
+          echo "════════════════════════════════════════════════════════"
           echo "✅ DEPLOYMENT SUCCESSFUL!"
-          echo "════════════════════════════════════════"
+          echo "════════════════════════════════════════════════════════"
+          echo ""
           echo "📦 Cluster:         ${{ env.ECS_CLUSTER }}"
           echo "🚀 Service:         ${{ env.ECS_SERVICE }}"
           echo "📋 Task Definition: ${{ env.TASK_DEFINITION_FAMILY }}"
           echo "🎯 Container:       ${{ env.CONTAINER_NAME }}"
           echo "🐳 Image:           ${{ steps.build-image.outputs.image }}"
-          echo "════════════════════════════════════════"
+          echo "🌍 Region:          ${{ env.AWS_REGION }}"
+          echo ""
+          echo "════════════════════════════════════════════════════════"
