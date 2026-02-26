@@ -11,7 +11,7 @@ env:
   ECR_REPOSITORY: testfyai
   ECS_SERVICE: testfly-service
   ECS_CLUSTER: testfly-ai-cluster
-  CONTAINER_NAME: chatbot-backend
+  CONTAINER_NAME: testflycontainer1
   TASK_DEFINITION_FAMILY: testflytaskdef
 
 jobs:
