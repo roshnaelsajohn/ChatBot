@@ -1,16 +1,69 @@
-# React + Vite
+# TestFly AI — React Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The React/Vite frontend for the **TestFly AI RAG Chatbot**. Fully mobile-responsive, built with Tailwind CSS and Lucide icons.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🖼 UI Overview
 
-## React Compiler
+| Screen | Desktop (≥768px) | Mobile (<768px) |
+|---|---|---|
+| Navigation | Left sidebar | Fixed bottom tab bar |
+| Chat controls | Right panel (`w-72`) | FAB → bottom-sheet drawer |
+| Documents list | 4-column table | Card list |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev        # → http://localhost:5173
+
+# Production build
+npm run build
+```
+
+---
+
+## 📁 Structure
+
+```
+src/
+├── App.jsx               # Router + layout shell
+├── api.js                # Axios API client (points to backend)
+├── index.css             # Tailwind directives + Google Fonts
+└── components/
+    ├── Header.jsx         # Top header — compact on mobile
+    ├── Navigation.jsx     # Sidebar (desktop) / Bottom tab bar (mobile)
+    ├── ChatView.jsx       # Chat area + Controls panel / FAB drawer
+    ├── ChatArea.jsx       # Message thread + input bar
+    ├── MessageBubble.jsx  # Message bubble with source badges
+    └── DocumentsView.jsx  # Upload + file management
+```
+
+---
+
+## ⚙️ Environment
+
+Create a `.env` file in this directory:
+
+```env
+VITE_API_BASE_URL=http://localhost:5001
+```
+
+---
+
+## 📦 Key Dependencies
+
+| Package | Version | Purpose |
+|---|---|---|
+| react | ^19 | UI framework |
+| react-router-dom | ^7 | Client-side routing |
+| tailwindcss | ^4 | Utility-first styling |
+| lucide-react | latest | Icons |
+| axios | latest | HTTP client |
+| react-markdown | latest | Markdown rendering in messages |
