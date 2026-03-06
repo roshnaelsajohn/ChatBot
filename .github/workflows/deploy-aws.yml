@@ -1,137 +1,33 @@
-name: Deploy to AWS ECS
+name: Deploy to EC2
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-env:
-  AWS_REGION: eu-north-1
-  ECR_REPOSITORY: testfyai
-  ECS_SERVICE: testfly-service
-  ECS_CLUSTER: testfly-ai-cluster
-  CONTAINER_NAME: testflycontainer1
-  TASK_DEFINITION_FAMILY: testflytaskdef
 
 jobs:
   deploy:
-    name: Deploy to ECS
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "📦 Pulling latest code..."
+            cd ChatBot
+            git pull origin main
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+            echo "🔨 Building and starting containers..."
+            docker-compose up -d --build
 
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          echo "Building Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./backend
-          
-          echo "Tagging as latest..."
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          echo "Pushing to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "✅ Image pushed successfully"
-
-      - name: Download and clean task definition
-        run: |
-          echo "Downloading task definition: ${{ env.TASK_DEFINITION_FAMILY }}"
-          
-          # Download full task definition
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.TASK_DEFINITION_FAMILY }} \
-            --region ${{ env.AWS_REGION }} > full-task-def.json
-          
-          # Extract and clean using Python
-          python3 << 'EOF'
-          import json
-          
-          # Read the full task definition
-          with open('full-task-def.json', 'r') as f:
-              data = json.load(f)
-          
-          task_def = data['taskDefinition']
-          
-          # List of fields to remove (metadata/read-only fields)
-          fields_to_remove = [
-              'taskDefinitionArn',
-              'revision',
-              'status',
-              'requiresAttributes',
-              'compatibilities',
-              'registeredAt',
-              'registeredBy',
-              'deregisteredAt',
-              'enableFaultInjection'
-          ]
-          
-          # Remove unwanted fields from root
-          for field in fields_to_remove:
-              task_def.pop(field, None)
-          
-          # Also clean container definitions
-          if 'containerDefinitions' in task_def:
-              for container in task_def['containerDefinitions']:
-                  container.pop('enableFaultInjection', None)
-          
-          # Write cleaned task definition
-          with open('task-definition.json', 'w') as f:
-              json.dump(task_def, f, indent=2)
-          
-          print("✅ Task definition cleaned successfully")
-          print(f"Family: {task_def.get('family')}")
-          print(f"Container: {task_def['containerDefinitions'][0].get('name')}")
-          EOF
-          
-          echo "✅ Task definition ready for deployment"
-
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
-
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-
-      - name: Deployment summary
-        run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "✅ DEPLOYMENT SUCCESSFUL!"
-          echo "════════════════════════════════════════════════════════"
-          echo ""
-          echo "📦 Cluster:         ${{ env.ECS_CLUSTER }}"
-          echo "🚀 Service:         ${{ env.ECS_SERVICE }}"
-          echo "📋 Task Definition: ${{ env.TASK_DEFINITION_FAMILY }}"
-          echo "🎯 Container:       ${{ env.CONTAINER_NAME }}"
-          echo "🐳 Image:           ${{ steps.build-image.outputs.image }}"
-          echo "🌍 Region:          ${{ env.AWS_REGION }}"
-          echo ""
-          echo "════════════════════════════════════════════════════════"
+            echo "✅ Deployment complete!"
+            echo "================================"
+            echo "📊 Container Status:"
+            docker-compose ps
+            echo "================================"
+            echo "🖥️  Frontend: http://${{ secrets.EC2_HOST }}:8501"
+            echo "🔧 Backend:  http://${{ secrets.EC2_HOST }}:5001"
+            echo "================================"
