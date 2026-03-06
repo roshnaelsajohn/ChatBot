@@ -78,7 +78,8 @@ function App() {
         <Header />
         <div className="flex flex-1 overflow-hidden">
           <Navigation fileList={fileList} onRefresh={refreshData} />
-          <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50">
+          {/* pb-16 on mobile reserves space above the fixed bottom tab bar */}
+          <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50 pb-16 md:pb-0">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route

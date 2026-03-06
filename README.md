@@ -35,6 +35,7 @@ A modern, containerized AI chatbot powered by **Anthropic Claude** and **Hybrid 
 |---|---|
 | [React](https://react.dev/) | Single-page application |
 | [Vite](https://vitejs.dev/) | Build tool |
+| [Tailwind CSS](https://tailwindcss.com/) | Utility-first responsive styling |
 | [Axios](https://axios-http.com/) | HTTP client (`api.js`) |
 | Lucide Icons | Iconography |
 
@@ -72,6 +73,13 @@ A modern, containerized AI chatbot powered by **Anthropic Claude** and **Hybrid 
 - Duplicate detection before processing
 - Filterable file list — All / Completed / Pending / Failed
 - Persistent storage via Docker volumes
+
+### 6. Mobile-Responsive Design
+- **Bottom tab bar** replaces the sidebar on screens narrower than `768px`
+- **Floating action button (FAB)** opens a slide-up bottom-sheet drawer for chat controls on mobile
+- **Document list** collapses from a 4-column table to a compact **card list** on mobile
+- All padding, font sizes, and icon sizes scale gracefully across breakpoints
+- iOS safe-area inset support so the input bar is never hidden behind a notch
 
 ---
 
@@ -153,17 +161,17 @@ ChatBot/
 │   ├── requirement.txt          # Python dependencies
 │   └── Dockerfile
 │
-├── frontend-react/              # Primary React UI
+├── frontend-react/              # Primary React UI (mobile-responsive)
 │   └── src/
-│       ├── App.jsx              # Main router
+│       ├── App.jsx              # Main router + layout
 │       ├── api.js               # Axios API client
 │       └── components/
-│           ├── ChatView.jsx     # Chat mode selector + query input
-│           ├── ChatArea.jsx     # Message thread display
+│           ├── ChatView.jsx     # Chat area + right-panel (desktop) / FAB drawer (mobile)
+│           ├── ChatArea.jsx     # Message thread + responsive input bar
 │           ├── MessageBubble.jsx # Individual message + source badges
-│           ├── DocumentsView.jsx # File upload & management dashboard
-│           ├── Navigation.jsx   # Sidebar navigation
-│           └── Header.jsx       # Top header bar
+│           ├── DocumentsView.jsx # Upload & management — table (desktop) / cards (mobile)
+│           ├── Navigation.jsx   # Sidebar (desktop ≥768px) / bottom tab bar (mobile)
+│           └── Header.jsx       # Compact top header bar
 │
 ├── frontend/                    # Legacy Streamlit UI (unused in Docker)
 │   └── streamlit_app.py

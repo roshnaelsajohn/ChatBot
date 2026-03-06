@@ -38,12 +38,11 @@ const DocumentsView = ({ fileList, onRefresh }) => {
             id: Date.now(),
             name: file.name,
             progress: 0,
-            status: 'pending' // Renamed from uploading to match filter
+            status: 'pending'
         };
 
         setUploadingFiles(prev => [newFile, ...prev]);
 
-        // Mock Progress
         const interval = setInterval(() => {
             setUploadingFiles(prev => prev.map(f =>
                 f.id === newFile.id && f.progress < 90 ? { ...f, progress: f.progress + 10 } : f
@@ -55,10 +54,8 @@ const DocumentsView = ({ fileList, onRefresh }) => {
             clearInterval(interval);
 
             if (result.success) {
-                // Success: Remove from uploadingFiles so it doesn't show as duplicate
-                // It will appear in fileList after refresh
                 setUploadingFiles(prev => prev.filter(f => f.id !== newFile.id));
-                onRefresh(); // Refresh global file list
+                onRefresh();
             } else {
                 setUploadingFiles(prev => prev.map(f =>
                     f.id === newFile.id ? { ...f, progress: 100, status: 'failed', error: result.message } : f
@@ -83,11 +80,10 @@ const DocumentsView = ({ fileList, onRefresh }) => {
         if (confirm("Are you sure you want to delete ALL documents?")) {
             await clearCollection();
             onRefresh();
-            setUploadingFiles([]); // Also clear any failed/pending status
+            setUploadingFiles([]);
         }
     };
 
-    // Unified List Logic
     const getFilteredList = () => {
         const pendingItems = uploadingFiles.filter(f => f.status === 'pending');
         const failedItems = uploadingFiles.filter(f => f.status === 'failed');
@@ -108,12 +104,24 @@ const DocumentsView = ({ fileList, onRefresh }) => {
 
     const displayList = getFilteredList();
 
+    const statusBadge = (file) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
+            ${file.status === 'completed' ? 'bg-green-100 text-green-800' :
+                file.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    file.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'}
+        `}>
+            {file.status === 'pending' ? `Uploading ${file.progress}%` : file.status}
+        </span>
+    );
+
     return (
-        <div className="flex-1 p-8 overflow-y-auto bg-slate-50">
+        /* Bottom padding ensures content clears the mobile tab bar */
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 pb-20 md:pb-8">
             <div className="max-w-4xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+                {/* ── Header Row ── */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
                     <div>
-                        <h2 className="text-2xl font-brand text-secondary mb-1">Document Management</h2>
+                        <h2 className="text-xl md:text-2xl font-brand text-secondary mb-1">Document Management</h2>
                         <div className="flex items-center gap-2">
                             <select
                                 value={filterStatus}
@@ -133,16 +141,16 @@ const DocumentsView = ({ fileList, onRefresh }) => {
 
                     <button
                         onClick={handleClearAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+                        className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
                     >
-                        <Trash2 size={16} /> Delete All Docs
+                        <Trash2 size={16} /> Delete All
                     </button>
                 </div>
 
                 {/* Upload Area */}
                 <div
                     className={`
-                        mb-10 p-10 border-2 border-dashed rounded-xl text-center transition-all bg-white shadow-sm
+                        mb-6 md:mb-10 p-5 md:p-10 border-2 border-dashed rounded-xl text-center transition-all bg-white shadow-sm cursor-pointer
                         ${dragActive ? 'border-primary bg-primary/5' : 'border-slate-300 hover:border-primary/50'}
                     `}
                     onDragEnter={handleDrag}
@@ -158,16 +166,21 @@ const DocumentsView = ({ fileList, onRefresh }) => {
                         accept=".pdf,.txt,.docx"
                         onChange={handleFileSelect}
                     />
-                    <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload size={32} />
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                        <Upload size={24} className="md:hidden" />
+                        <Upload size={32} className="hidden md:block" />
                     </div>
-                    <h3 className="text-lg font-semibold text-secondary mb-2">Click to upload or drag and drop</h3>
+                    <h3 className="text-base md:text-lg font-semibold text-secondary mb-1 md:mb-2">
+                        Click to upload or drag and drop
+                    </h3>
                     <p className="text-slate-500 text-sm">PDF, DOCX, or TXT (Max 10MB)</p>
                 </div>
 
-                {/* Unified File List Table */}
+                {/* ── File List ── */}
                 <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+
+                    {/* Desktop Table (hidden on mobile) */}
+                    <table className="hidden md:table w-full text-left border-collapse">
                         <thead className="bg-slate-50">
                             <tr>
                                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Document Name</th>
@@ -198,18 +211,8 @@ const DocumentsView = ({ fileList, onRefresh }) => {
                                                 {file.error && <div className="text-[10px] text-red-500">{file.error}</div>}
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                                ${file.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                    file.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                        file.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'}
-                                            `}>
-                                                {file.status === 'pending' ? `Uploading ${file.progress}%` : file.status}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-sm text-slate-500">
-                                            {new Date().toLocaleDateString()}
-                                        </td>
+                                        <td className="p-4">{statusBadge(file)}</td>
+                                        <td className="p-4 text-sm text-slate-500">{new Date().toLocaleDateString()}</td>
                                         <td className="p-4 text-sm text-slate-500 text-right">
                                             {file.status === 'completed' && (
                                                 <button
@@ -235,6 +238,60 @@ const DocumentsView = ({ fileList, onRefresh }) => {
                             )}
                         </tbody>
                     </table>
+
+                    {/* Mobile Card List (hidden on desktop) */}
+                    <div className="md:hidden divide-y divide-slate-100">
+                        {displayList.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400 text-sm">
+                                {filterStatus === 'all' ? "No documents found." : `No ${filterStatus} documents.`}
+                            </div>
+                        ) : (
+                            displayList.map((file, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-4">
+                                    {/* Icon */}
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0
+                                        ${file.status === 'failed' ? 'bg-red-50 text-red-500' :
+                                            file.status === 'pending' ? 'bg-yellow-50 text-yellow-500' : 'bg-blue-50 text-blue-600'}
+                                    `}>
+                                        {file.status === 'failed' ? <AlertCircle size={18} /> : <FileText size={18} />}
+                                    </div>
+
+                                    {/* Name + error */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-secondary truncate" title={file.name}>
+                                            {file.name}
+                                        </div>
+                                        {file.error && (
+                                            <div className="text-[10px] text-red-500 mt-0.5">{file.error}</div>
+                                        )}
+                                        <div className="mt-1">{statusBadge(file)}</div>
+                                    </div>
+
+                                    {/* Action */}
+                                    <div className="shrink-0">
+                                        {file.status === 'completed' && (
+                                            <button
+                                                onClick={() => handleDelete(file.name)}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete File"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                        {file.status === 'failed' && (
+                                            <button
+                                                onClick={() => setUploadingFiles(prev => prev.filter(f => f.id !== file.id))}
+                                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                                title="Dismiss"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
