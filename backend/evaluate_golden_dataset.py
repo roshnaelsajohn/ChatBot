@@ -71,12 +71,14 @@ def evaluate_against_golden(run, example) -> dict:
          # Parse output string (e.g. "SCORE: 8\nREASON: Missed one edge case.")
          content = result.content
          score = 0
-         if "SCORE:" in content:
+         
+         import re
+         # Search for SCORE: followed by digits
+         match = re.search(r"SCORE:\s*(\d+)", content)
+         if match:
              try:
-                 # Extract number
-                 score_part = content.split("SCORE:")[1].split("\\n")[0].strip()
-                 score_part = score_part.split("/")[0].strip() # Handles '8/10' or '8'
-                 score = int(score_part) / 10.0 # Langsmith likes scores 0.0 - 1.0
+                 score_val = int(match.group(1))
+                 score = score_val / 10.0 # Langsmith likes scores 0.0 - 1.0
              except:
                  score = 0
                  
