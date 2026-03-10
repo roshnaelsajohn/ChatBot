@@ -53,7 +53,9 @@ class TestCaseService:
             "Given a User Story summary and description, generate comprehensive Test Cases. "
             "You MUST strictly follow the exact layout, fields, and headers defined in the "
             "company's Test Case Template Knowledge Base document. Include Preconditions, Test Steps, "
-            "Expected Results for every step, Post-conditions, and Execution metadata at the bottom."
+            "Expected Results for every step, Post-conditions, and Execution metadata at the bottom. "
+            "Crucially, you MUST include a dedicated section or specific Test Cases labeled as 'Edge Cases' "
+            "to ensure full verification of the user story."
         )
         
         user_content = f"Issue Key/Title: {key}\nSummary: {summary}\nDescription:\n{description}\n\nPlease generate the test cases."

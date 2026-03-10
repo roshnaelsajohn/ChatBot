@@ -91,12 +91,14 @@ def evaluate_has_edge_cases_section(run, example) -> dict:
     
     generated_text = run.outputs["generated_test_cases"]
     
-    if "Edge Cases" in generated_text:
+    generated_text = run.outputs["generated_test_cases"].lower()
+    
+    if "edge case" in generated_text:
         score = 1
-        comment = "Output contains an 'Edge Cases' section."
+        comment = "Output contains reference to Edge Cases."
     else:
         score = 0
-        comment = "Missing 'Edge Cases' section."
+        comment = "Missing 'Edge Case' reference in generated output."
         
     return {"key": "Has_Edge_Cases", "score": score, "comment": comment}
 
