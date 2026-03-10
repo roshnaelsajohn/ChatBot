@@ -84,6 +84,20 @@ def evaluate_against_golden(run, example) -> dict:
     except Exception as e:
          return {"key": "Golden_Match_Score", "score": 0, "comment": f"Eval failed: {e}"}
 
+def evaluate_has_edge_cases_section(run, example) -> dict:
+    """A Custom Evaluator that checks if the exact string 'Edge Cases' is in the output."""
+    
+    generated_text = run.outputs["generated_test_cases"]
+    
+    if "Edge Cases" in generated_text:
+        score = 1
+        comment = "Output contains an 'Edge Cases' section."
+    else:
+        score = 0
+        comment = "Missing 'Edge Cases' section."
+        
+    return {"key": "Has_Edge_Cases", "score": score, "comment": comment}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True, help="Name of Golden Dataset in LangSmith")
@@ -94,7 +108,7 @@ if __name__ == "__main__":
     experiment_results = evaluate(
         generate_and_evaluate,
         data=args.dataset,
-        evaluators=[evaluate_against_golden],
+        evaluators=[evaluate_against_golden, evaluate_has_edge_cases_section],
         experiment_prefix="Golden_Eval",
         metadata={"model": "claude-3-haiku-20240307", "eval_type": "golden_reference"}
     )
