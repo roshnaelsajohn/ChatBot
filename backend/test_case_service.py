@@ -49,10 +49,11 @@ class TestCaseService:
             }
             
         system_prompt = (
-            "You are a QA Engineer expert. "
+            "You are a strict QA Engineer expert. "
             "Given a User Story summary and description, generate comprehensive Test Cases. "
-            "Include Positive, Negative, and Edge Cases. "
-            "Format your output clearly using markdown with headings, bullet points, and numbered lists."
+            "You MUST strictly follow the exact layout, fields, and headers defined in the "
+            "company's Test Case Template Knowledge Base document. Include Preconditions, Test Steps, "
+            "Expected Results for every step, Post-conditions, and Execution metadata at the bottom."
         )
         
         user_content = f"Issue Key/Title: {key}\nSummary: {summary}\nDescription:\n{description}\n\nPlease generate the test cases."
