@@ -27,8 +27,12 @@ def generate_and_evaluate(inputs: dict) -> dict:
     else:
         return {"generated_test_cases": f"Generation Failed: {result.get('message')}"}
 
-def evaluate_completeness(run, example) -> dict:
-    """Custom Evaluator: Scores completeness."""
+import re
+
+def evaluate_metrics(run, example) -> dict:
+    """
+    Evaluator that parses the LLM-as-a-judge response into separate scores.
+    """
     eval_service = LangSmithEvalService()
     
     original_story = f"Summary: {example.inputs['summary']}\nDescription: {example.inputs['description']}"
@@ -36,28 +40,53 @@ def evaluate_completeness(run, example) -> dict:
     
     result = eval_service.evaluate_generation(original_story, generated)
     
-    if result["success"]:
-         # We're parsing the LLM judge output simply. Ideally, we just return the raw text
-         # or extract the scores. For now, we'll return the full text as a string value
-         return {"key": "LLM_Judge_Review", "score": 1, "comment": result["evaluation"]}
+    if not result["success"]:
+        return [{"key": "LLM_Eval_Error", "score": 0, "comment": result.get("message")}]
+    
+    feedback = result["evaluation"]
+    
+    # Parse scores using regex
+    # Looking for formats like "Completeness: 8/10" or "Clarity: 9"
+    metrics = {
+        "Completeness": 0,
+        "Clarity": 0,
+        "Edge Cases": 0
+    }
+    
+    results = []
+    for metric in metrics.keys():
+        match = re.search(rf"{metric}:\s*(\d+)", feedback, re.IGNORECASE)
+        if match:
+            score_val = int(match.group(1))
+            normalized_score = score_val / 10.0
+            results.append({"key": metric.replace(" ", "_"), "score": normalized_score})
+            
+    # Add the full feedback as a comment on the first metric
+    if results:
+        results[0]["comment"] = feedback
     else:
-         return {"key": "LLM_Judge_Review", "score": 0, "comment": "Failed"}
+        results.append({"key": "Eval_Parsing_Failed", "score": 0, "comment": feedback})
+        
+    return results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate Test Case Generation against a LangSmith Dataset.")
-    parser.add_argument("--dataset", required=True, help="The exact name of the dataset in LangSmith to run against.")
+    parser.add_argument("--dataset", help="The exact name or ID of the dataset in LangSmith.")
     args = parser.parse_args()
 
-    print(f"Starting evaluation run on dataset: '{args.dataset}'")
+    # Priority: 1. Arg, 2. Env, 3. Hardcoded Default
+    dataset_to_run = args.dataset or os.environ.get("LANGSMITH_TARGET_DATASET_ID", "c884189a-4c1e-4a9e-b565-7dad2b174992")
+
+    print(f"Starting Quality evaluation run on dataset: '{dataset_to_run}'")
     
     # Run the evaluation
     experiment_results = evaluate(
-        generate_and_evaluate,      # The function that generates the output
-        data=args.dataset,          # The dataset to evaluate against
-        evaluators=[evaluate_completeness],  # Our custom evaluation logic
-        experiment_prefix="TC_Gen_Eval",     # Naming the run in LangSmith
-        metadata={"model": "claude-3-haiku-20240307"}
+        generate_and_evaluate,
+        data=dataset_to_run,
+        evaluators=[evaluate_metrics],
+        experiment_prefix="Quality_Matrix",
+        metadata={"model": "claude-3-haiku-20240307", "eval_type": "general_quality"}
     )
     
-    print("\n✅ Evaluation run complete.")
+    print("\n✅ Quality Evaluation run complete.")
     print("View the detailed matrix and scores in your LangSmith dashboard.")
