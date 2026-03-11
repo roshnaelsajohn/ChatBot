@@ -74,19 +74,22 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="The exact name or ID of the dataset in LangSmith.")
     args = parser.parse_args()
 
-    # Priority: 1. Arg, 2. Env, 3. Hardcoded Default
-    dataset_to_run = args.dataset or os.environ.get("LANGSMITH_TARGET_DATASET_ID", "c884189a-4c1e-4a9e-b565-7dad2b174992")
+    # Priority: 1. Arg, 2. Env
+    dataset_to_run = args.dataset or os.environ.get("LANGSMITH_TARGET_DATASET_ID")
 
-    print(f"Starting Quality evaluation run on dataset: '{dataset_to_run}'")
-    
-    # Run the evaluation
-    experiment_results = evaluate(
-        generate_and_evaluate,
-        data=dataset_to_run,
-        evaluators=[evaluate_metrics],
-        experiment_prefix="Quality_Matrix",
-        metadata={"model": "claude-3-haiku-20240307", "eval_type": "general_quality"}
-    )
+    if not dataset_to_run:
+        print("❌ Error: No dataset provided via --dataset and LANGSMITH_TARGET_DATASET_ID not set in .env")
+    else:
+        print(f"Starting Quality evaluation run on dataset: '{dataset_to_run}'")
+        
+        # Run the evaluation
+        experiment_results = evaluate(
+            generate_and_evaluate,
+            data=dataset_to_run,
+            evaluators=[evaluate_metrics],
+            experiment_prefix="Quality_Matrix",
+            metadata={"model": "claude-3-haiku-20240307", "eval_type": "general_quality"}
+        )
     
     print("\n✅ Quality Evaluation run complete.")
     print("View the detailed matrix and scores in your LangSmith dashboard.")

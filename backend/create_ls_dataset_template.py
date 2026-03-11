@@ -1,5 +1,6 @@
 import os
 from langsmith import Client
+from langsmith.schemas import DataType
 from dotenv import load_dotenv
 import datetime
 
@@ -7,7 +8,7 @@ load_dotenv()
 
 # --- CONFIGURATION ---
 # Target Dataset ID in LangSmith (tries .env first, then falls back to hardcoded default)
-TARGET_DATASET_ID = os.environ.get("LANGSMITH_TARGET_DATASET_ID", "c884189a-4c1e-4a9e-b565-7dad2b174992")
+TARGET_DATASET_ID = os.environ.get("LANGSMITH_TARGET_DATASET_ID")
 # ---------------------
 
 # We use the exact template structure the user achieved via RAG as our "Golden Standard"
@@ -81,6 +82,39 @@ Comments: [Any observations or notes]
     }
 ]
 
+def create_fresh_dataset():
+    """Create a brand new timestamped LangSmith Dataset and add examples."""
+    api_key = os.environ.get("LANGSMITH_API_KEY")
+    if not api_key:
+        print("Error: LANGSMITH_API_KEY not found.")
+        return None
+        
+    client = Client(api_key=api_key)
+    
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    dataset_name = f"TestRun - {timestamp}"
+    
+    print(f"Creating fresh dataset: '{dataset_name}'...")
+    try:
+        dataset = client.create_dataset(
+            dataset_name=dataset_name,
+            description=f"Automated test run dataset created at {timestamp}",
+            data_type=DataType.kv
+        )
+        
+        for example in USER_STORIES:
+            client.create_example(
+                inputs=example["input"],
+                outputs=example["output"],
+                dataset_id=dataset.id
+            )
+        print(f"✅ Created and populated dataset: {dataset_name}")
+        return dataset_name, dataset.id # Return both so evaluator can use name and we can print ID URL
+        
+    except Exception as e:
+        print(f"❌ Error creating fresh dataset: {e}")
+        return None, None
+
 def add_to_existing_dataset(dataset_id):
     """Add examples to the specific existing LangSmith Dataset."""
     api_key = os.environ.get("LANGSMITH_API_KEY")
@@ -104,10 +138,13 @@ def add_to_existing_dataset(dataset_id):
         print(f"❌ Error adding to dataset: {e}")
 
 if __name__ == "__main__":
-    # --- OPTION A: Add to your specific existing 'TestFly' dataset ---
-    # Target Dataset ID: c884189a-4c1e-4a9e-b565-7dad2b174992
-    add_to_existing_dataset(TARGET_DATASET_ID)
+    import sys
     
-    # --- OPTION B: If you wanted a SEPARATE dataset for a different project ---
-    # You would simply change the ID or name and run the code again:
-    # add_to_existing_dataset("ANOTHER_DATASET_ID")
+    # If user runs with "--fresh", create a new one. Otherwise, add to existing.
+    if "--fresh" in sys.argv:
+        create_fresh_dataset()
+    if not TARGET_DATASET_ID:
+        print("❌ Error: LANGSMITH_TARGET_DATASET_ID not set in .env")
+    else:
+        # Targeting your specific dataset ID defined in .env
+        add_to_existing_dataset(TARGET_DATASET_ID)

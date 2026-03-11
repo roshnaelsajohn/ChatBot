@@ -102,22 +102,26 @@ def evaluate_has_edge_cases_section(run, example) -> dict:
         
     return {"key": "Has_Edge_Cases", "score": score, "comment": comment}
 
+def run_golden_evaluation(dataset_name):
+    """Run a Golden Evaluation against a specific dataset."""
+    print(f"Starting GOLDEN evaluation run on dataset: '{dataset_name}'")
+    
+    experiment_results = evaluate(
+        generate_and_evaluate,
+        data=dataset_name,
+        evaluators=[evaluate_against_golden, evaluate_has_edge_cases_section],
+        experiment_prefix="Golden_Eval",
+        metadata={"model": "claude-3-haiku-20240307", "eval_type": "golden_reference"}
+    )
+    print(f"\n✅ Golden Evaluation run complete for dataset: {dataset_name}")
+    return experiment_results
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", help="Name or ID of Golden Dataset in LangSmith (defaults to .env value)")
     args = parser.parse_args()
 
     # Priority: 1. Command Line Arg, 2. Env Var, 3. Hardcoded Default
-    dataset_to_run = args.dataset or os.environ.get("LANGSMITH_TARGET_DATASET_ID", "c884189a-4c1e-4a9e-b565-7dad2b174992")
+    dataset_to_run = args.dataset or os.environ.get("LANGSMITH_TARGET_DATASET_ID")
 
-    print(f"Starting GOLDEN evaluation run on dataset: '{dataset_to_run}'")
-    
-    experiment_results = evaluate(
-        generate_and_evaluate,
-        data=dataset_to_run,
-        evaluators=[evaluate_against_golden, evaluate_has_edge_cases_section],
-        experiment_prefix="Golden_Eval",
-        metadata={"model": "claude-3-haiku-20240307", "eval_type": "golden_reference"}
-    )
-    
-    print("\n✅ Golden Evaluation run complete.")
+    run_golden_evaluation(dataset_to_run)
