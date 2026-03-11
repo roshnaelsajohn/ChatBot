@@ -5,6 +5,11 @@ import datetime
 
 load_dotenv()
 
+# --- CONFIGURATION ---
+# Target Dataset ID in LangSmith (tries .env first, then falls back to hardcoded default)
+TARGET_DATASET_ID = os.environ.get("LANGSMITH_TARGET_DATASET_ID", "c884189a-4c1e-4a9e-b565-7dad2b174992")
+# ---------------------
+
 # We use the exact template structure the user achieved via RAG as our "Golden Standard"
 USER_STORIES = [
     {
@@ -76,8 +81,8 @@ Comments: [Any observations or notes]
     }
 ]
 
-def create_document_template_dataset():
-    """Create a LangSmith Dataset using the custom Document Template format."""
+def add_to_existing_dataset(dataset_id):
+    """Add examples to the specific existing LangSmith Dataset."""
     api_key = os.environ.get("LANGSMITH_API_KEY")
     if not api_key:
         print("Error: LANGSMITH_API_KEY not found.")
@@ -85,28 +90,24 @@ def create_document_template_dataset():
         
     client = Client(api_key=api_key)
     
-    dataset_name = f"Doc Template Dataset - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    
-    print(f"Creating dataset '{dataset_name}'...")
+    print(f"Adding examples to existing dataset ID: {dataset_id}...")
     try:
-        dataset = client.create_dataset(
-            dataset_name=dataset_name,
-            description="Golden dataset testing against the custom Knowledge Base Document Template format.",
-        )
-        print(f"✅ Dataset created successfully! ID: {dataset.id}")
-        
-        print("Adding example to dataset...")
         for example in USER_STORIES:
             client.create_example(
                 inputs=example["input"],
                 outputs=example["output"],
-                dataset_id=dataset.id
+                dataset_id=dataset_id
             )
-        print("✅ Added Template Example to dataset.")
-        print(f"\nRun the evaluator against this dataset: {dataset_name}")
+        print(f"✅ Successfully added examples to dataset {dataset_id}!")
         
     except Exception as e:
-        print(f"❌ Error creating dataset: {e}")
+        print(f"❌ Error adding to dataset: {e}")
 
 if __name__ == "__main__":
-    create_document_template_dataset()
+    # --- OPTION A: Add to your specific existing 'TestFly' dataset ---
+    # Target Dataset ID: c884189a-4c1e-4a9e-b565-7dad2b174992
+    add_to_existing_dataset(TARGET_DATASET_ID)
+    
+    # --- OPTION B: If you wanted a SEPARATE dataset for a different project ---
+    # You would simply change the ID or name and run the code again:
+    # add_to_existing_dataset("ANOTHER_DATASET_ID")
