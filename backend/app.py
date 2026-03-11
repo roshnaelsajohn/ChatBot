@@ -12,6 +12,8 @@ from rag_service import get_rag_service
 from llm_service import GeminiService
 from web_search_service import WebSearchService
 from monitoring_service import get_monitoring_service
+from test_case_service import TestCaseService
+from langsmith_eval import LangSmithEvalService
 import datetime
 from dotenv import load_dotenv
 load_dotenv()   
@@ -278,6 +280,47 @@ def clear_collection():
             "success": False,
             "message": f"Error clearing collection: {str(e)}"
         }), 500
+
+# API endpoint - Generate Test Cases
+@app.route("/api/generate-test-cases", methods=["POST"])
+def generate_test_cases():
+    """Generate test cases from Jira User Story and evaluate with LangSmith."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+        
+    jira_issue_key = data.get("jira_issue_key")
+    summary = data.get("summary")
+    description = data.get("description")
+    
+    tc_service = TestCaseService()
+    eval_service = LangSmithEvalService()
+    
+    if jira_issue_key:
+        tc_result = tc_service.generate_from_jira(jira_issue_key)
+    elif summary and description:
+        tc_result = tc_service.generate_from_text(summary, description)
+    else:
+        return jsonify({"success": False, "message": "Must provide 'jira_issue_key' OR 'summary' and 'description'."}), 400
+
+    if not tc_result["success"]:
+        return jsonify(tc_result), 500
+        
+    generated_tests = tc_result["test_cases"]
+    jira_info = tc_result["jira_info"]
+    original_story = f"Summary: {jira_info['summary']}\nDescription: {jira_info['description']}"
+    
+    # Evaluate the generated tests
+    eval_result = eval_service.evaluate_generation(original_story, generated_tests)
+    
+    response = {
+        "success": True,
+        "jira_info": jira_info,
+        "test_cases": generated_tests,
+        "evaluation": eval_result.get("evaluation") if eval_result["success"] else f"Eval Failed: {eval_result.get('message')}"
+    }
+    
+    return jsonify(response), 200
 
 
 @app.route("/api/files/<filename>", methods=["DELETE"])
